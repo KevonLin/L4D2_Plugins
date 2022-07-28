@@ -7,7 +7,7 @@
 #include <l4d2util>
 #undef REQUIRE_PLUGIN
 
-#define PLUGIN_VERSION "1.0.7"
+#define PLUGIN_VERSION "1.0.8"
 
 #define TEST_DEBUG 0
 #define TEST_DEBUG_LOG 1
@@ -45,8 +45,8 @@ int tankClientID = -1;
 public Plugin:myinfo = 
 {
     name = "L4D2 Tank Swap",
-    author = "AtomicStryker",
-    description = " Allows a primary Tank Player to surrender control to one of his teammates, or admins to take it anytime ",
+    author = "AtomicStryker, KevonLin",
+    description = "Allows a primary Tank Player to surrender control to one of his teammates, or admins to take it anytime, adapting spechud.",
     version = PLUGIN_VERSION,
     url = "http://forums.alliedmods.net/showthread.php?t=120807"
 }
@@ -84,6 +84,7 @@ public void Event_TankSpawn(Event event, const char[] name, bool dontBroadcast)
 {
 	if (GetConVarInt(cvar_SurrenderChoiceType) == 0) {return;}
 	tankClientID = FindTankClient(-1);
+	if (IsFakeClient(tankClientID)) {return;}
 	FakeClientCommand(tankClientID, "sm_tankhud");
 }
 
@@ -365,9 +366,16 @@ bool:HasTeamHumanPlayers(team)
 
 public TS_Auto_MenuCallBack(Handle:menu, MenuAction:action, param1, param2)
 {
-    if (action == MenuAction_End) CloseHandle(menu);
-    
-    if (action != MenuAction_Select) return; // only allow a valid choice to pass
+    if (action == MenuAction_End) 
+    {
+        FakeClientCommand(tankClientID, "sm_tankhud"); 
+        CloseHandle(menu);
+    }
+    if (action != MenuAction_Select) 
+    {
+        FakeClientCommand(tankClientID, "sm_tankhud");
+        return; // only allow a valid choice to pass
+    }
     
     decl String:number[4];
     GetMenuItem(menu, param2, number, sizeof(number));
