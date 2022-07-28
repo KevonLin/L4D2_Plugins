@@ -84,7 +84,8 @@ public void Event_TankSpawn(Event event, const char[] name, bool dontBroadcast)
 {
 	if (GetConVarInt(cvar_SurrenderChoiceType) == 0) {return;}
 	tankClientID = FindTankClient(-1);
-	if (IsFakeClient(tankClientID)) {return;}
+    // int client = GetClientOfUserId(event.GetInt("userid"))
+	if (!tankClientID || IsFakeClient(tankClientID)) {return;}
 	FakeClientCommand(tankClientID, "sm_tankhud");
 }
 
@@ -126,7 +127,12 @@ public Action:TS_CMD_TakeTank(client, args)
     {
         L4D2_ReplaceWithBot(client, true);
     }
+    
     L4D2_ReplaceTank(target, client);
+
+    // if (!IsFakeClient(target))
+    //     FakeClientCommand(target, "sm_tankhud");
+
     return Plugin_Handled;
 }
 
