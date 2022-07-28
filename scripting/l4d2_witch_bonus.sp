@@ -19,8 +19,8 @@ public Plugin myinfo =
 	name = "Witch Bonus",
 	author = "Kevonlin",
 	description = "Recovery health when kill the witch.",
-	version = "1.0",
-	url = "N/A"
+	version = "1.1",
+	url = "https://steamcommunity.com/id/harrylin134/"
 };
 
 public void OnPluginStart()
@@ -43,7 +43,7 @@ public void Event_WitchKilled(Event hEvent, const char[] sEventName, bool bDontB
 	// 获取杀死witch玩家
 	int client = GetClientOfUserId(hEvent.GetInt("userid"));
 
-	if (!IsClientInGame(client)) return;
+	if (!IsClientInGame(client) || !IsPlayerAlive(client) || IsFakeClient(client)) return;
 
 	// 判定不为生还者return
 	if (GetClientTeam(client) != L4D2Team_Survivor) return;
