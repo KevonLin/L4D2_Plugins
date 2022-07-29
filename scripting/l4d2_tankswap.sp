@@ -72,6 +72,7 @@ public OnPluginStart()
 	l4d_tankswap_debug = CreateConVar("l4d_tankswap_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
 
 	g_bDebug = GetConVarBool(l4d_tankswap_debug);
+
 	// AutoExecConfig("l4d2_tankswap");
 	
 	RegAdminCmd("sm_taketank", TS_CMD_TakeTank, ADMFLAG_CHEATS, " Take over the current Tank ");
@@ -85,12 +86,13 @@ public OnPluginStart()
 
 public void OnClientPostAdminCheck(int client)
 {
-	if(g_bDebug == false || IsFakeClient(client) || CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
+	if(!g_bDebug || IsFakeClient(client) || CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
+	{
 		return;
+	}
 
 	if(!(GetUserFlagBits(client) & ADMFLAG_GENERIC))
 	{
-
 		KickClient(client, "服务器调试中...");
 	}
 }
@@ -116,10 +118,10 @@ public void Event_TankSpawn(Event event, const char[] name, bool dontBroadcast)
 	}
 	
 	int infplayercount = InfectedTeamPlayerCount();
-
-	if (infplayercount > 2)
+	if (infplayercount > 1)
 	{
 		FakeClientCommand(tankClientID, "sm_tankhud"); 
+		// PrintToChatAll("Event_TankSpawn sm_tankhud");
 	}
 }
 
@@ -453,6 +455,7 @@ public TS_Auto_MenuCallBack(Handle:menu, MenuAction:action, param1, param2)
 	if (IsClientInGame(tankClientID))
 	{
 		FakeClientCommand(tankClientID, "sm_tankhud"); 
+		// PrintToChatAll("TS_Auto_MenuCallBack End sm_tankhud");
 	}
 }
 
@@ -600,6 +603,7 @@ stock L4D2_ReplaceTank(client, target)
 		SetInfectedSwapType(targetClass);
 		// PrintToChatAll("set targetClass [%d] successful", targetClass);
 	}
+}
 
 stock DebugPrintToAll(const String:format[], any:...)
 {

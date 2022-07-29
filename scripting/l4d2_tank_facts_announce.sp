@@ -345,15 +345,15 @@ stock int GetTankClient()
 
 	int tankclient = g_iTankClient;
 
-	if (IsValidPlayerIndex(tankclient))
+	if (!IsValidPlayerIndex(tankclient)) return 0;
+
+	if (!IsClientInGame(tankclient)) // If tank somehow is no longer in the game (kicked, hence events didn't fire)
 	{
-		if (!IsClientInGame(tankclient)) // If tank somehow is no longer in the game (kicked, hence events didn't fire)
-		{
-			tankclient = FindTankClient(-1); // find the tank client
-			if (!tankclient) return 0;
-			g_iTankClient = tankclient;
-		}
+		tankclient = FindTankClient(-1); // find the tank client
+		if (!tankclient) return 0;
+		g_iTankClient = tankclient;
 	}
+
 	return tankclient;
 }
 
