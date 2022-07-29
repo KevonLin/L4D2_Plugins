@@ -106,8 +106,11 @@ void SetSurvivorTempHealth(int client, int health)
 	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", float(health));
 	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 }
+<<<<<<< HEAD
 
 bool IsValidPlayerIndex(int client)
 {
 	return ( (client > 0) && (client <= MaxClients) );
 }
+=======
+>>>>>>> refs/remotes/origin/master
