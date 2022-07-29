@@ -69,7 +69,7 @@ public OnPluginStart()
 	cvar_SurrenderTimeLimit = CreateConVar("l4d2_tankswap_timelimit", "10", " How many seconds can a primary Tank Player surrender control");
 	cvar_SurrenderChoiceType = CreateConVar("l4d2_tankswap_choicetype", "2", " 0 - Disabled; 1 - press Button to call Menu; 2 - Menu appears for every Tank ", 0, true, 0.0, true, 2.0);
 	l4d_tankswap_transtype = CreateConVar("l4d_tankswap_transtype", "0", "Type for tankswaped infected", 0, true, 0.0, true, 6.0);
-	l4d_tankswap_debug = CreateConVar("l4d_tankswap_debug", "1", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
+	l4d_tankswap_debug = CreateConVar("l4d_tankswap_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
 
 	g_bDebug = GetConVarBool(l4d_tankswap_debug);
 	// AutoExecConfig("l4d2_tankswap");
