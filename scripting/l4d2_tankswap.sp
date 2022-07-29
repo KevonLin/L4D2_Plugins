@@ -116,10 +116,10 @@ public void Event_TankSpawn(Event event, const char[] name, bool dontBroadcast)
 	}
 	
 	int infplayercount = InfectedTeamPlayerCount();
-	if (infplayercount > 1)
+
+	if (infplayercount > 2)
 	{
 		FakeClientCommand(tankClientID, "sm_tankhud"); 
-		// PrintToChatAll("Event_TankSpawn sm_tankhud");
 	}
 }
 
@@ -453,7 +453,6 @@ public TS_Auto_MenuCallBack(Handle:menu, MenuAction:action, param1, param2)
 	if (IsClientInGame(tankClientID))
 	{
 		FakeClientCommand(tankClientID, "sm_tankhud"); 
-		// PrintToChatAll("TS_Auto_MenuCallBack End sm_tankhud");
 	}
 }
 
