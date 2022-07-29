@@ -11,8 +11,10 @@
 
 #define MATCHMODES_PATH		"configs/matchmodes.txt"
 #define TRANSLATION_FILE 	"l4d2_votemenu.phrases"
+#define THIRDMAP_PATH		"data/l4d2_votemenu_custommap.txt"
 
 #define MaxHP 100
+#define MAX_CAMPAIGN_LIMIT 64
 
 // Menu
 // 	g_MapList;
@@ -48,13 +50,18 @@ ConVar
 
 char
 	g_sCfg[32],
-	g_sSlots[64];
+	g_sSlots[64],
+	g_sMapinfo[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
+	g_sMapname[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
+	g_sVoteMapIndex[MAX_NAME_LENGTH],
+	g_sVoteMapName[MAX_NAME_LENGTH];
 
 int
 	// g_map_serial = -1,
 	g_cvarAddons = -2,
 	g_cvarReady = -1,
-	g_iSlots;
+	g_iSlots,
+	g_iCount;
 
 bool
 	g_bVoteEnable = false;
@@ -99,6 +106,8 @@ public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr
 
 public void OnPluginStart()
 {
+	ParseCampaigns();
+	
 	char sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, sizeof(sPath), "translations/"...TRANSLATION_FILE...".txt");
 	if (!FileExists(sPath))
@@ -121,7 +130,7 @@ public void OnPluginStart()
 	sm_votemenu_pills = CreateConVar("sm_votemenu_pills", "1", "Give hp Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_changeslots = CreateConVar("sm_votemenu_changeslots", "1", "Change slots Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_nextmap = CreateConVar("sm_votemenu_nextmap", "0", "Change next map Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_changethirdmaps = CreateConVar("sm_votemenu_changethirdmaps", "0", "Change third maps Enable", 0, true, 0.0, true, 1.0);
+	sm_votemenu_changethirdmaps = CreateConVar("sm_votemenu_changethirdmaps", "1", "Change custom maps Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_ban = CreateConVar("sm_votemenu_ban", "0", "Ban Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_kick = CreateConVar("sm_votemenu_kick", "0", "Kick Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "0", "Mute Enable", 0, true, 0.0, true, 1.0);
@@ -300,7 +309,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			}
 			else if (strcmp(item, "nextmap") == 0)
 			{
-				if (sm_votemenu_changethirdmaps.IntValue == 0)
+				if (sm_votemenu_nextmap.IntValue == 0)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -309,15 +318,16 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 
 				// MapMenu(param1);
 			}
-			else if (param2 == 4)
+			else if (strcmp(item, "changethirdmaps") == 0)
 			{
-				if (sm_votemenu_nextmap.IntValue == 0)
+				if (sm_votemenu_changethirdmaps.IntValue == 0)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
 					return 0;
 				}
-				// FakeClientCommand(param1, "sm_changeconfigs");
+
+				ThirdMapMenu(param1);
 			}
 			else if (param2 == 5)
 			{
@@ -526,59 +536,82 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 	return 0;
 }
 
-// void MapMenu(int iClient)
-// {
-// 	g_MapList = new Menu(MenuHandler_ChangeMap, MenuAction_Display);
-// 	g_MapList.SetTitle("%T", "Select map menu", iClient);
-// 	g_MapList.ExitBackButton = true;
-// }
-
-// public int MenuHandler_ChangeMap(Menu menu, MenuAction action, int param1, int param2)
-// {
-// 	if (action == MenuAction_Cancel)
-// 	{
-// 		if (param2 == MenuCancel_ExitBack)
-// 		{
-// 			BuildVoteMenu(param1);
-// 		}
-// 	}
-// 	else if (action == MenuAction_Select)
-// 	{
-// 		char map[PLATFORM_MAX_PATH];
-		
-// 		menu.GetItem(param2, map, sizeof(map));
+void ThirdMapMenu(int iClient)
+{
+	char sBuffer[64];
+	Menu vMenu = new Menu(ThirdMapMenuHandler);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select map menu" ,iClient);
+	vMenu.SetTitle(sBuffer);
 	
-// 		// ShowActivity2(param1, "[SM] ", "%t", "Changing map", map);
+	for (int i = 0; i < g_iCount; i++)
+	{
+		vMenu.AddItem(g_sMapinfo[i], g_sMapname[i]);
+	}
 
-// 		LogAction(param1, -1, "\"%L\" changed map to \"%s\"", param1, map);
+	vMenu.ExitBackButton = true;
+	vMenu.ExitButton = true;
+	vMenu.Display(iClient, 30);
+}
 
-// 		DataPack dp;
-// 		CreateDataTimer(3.0, Timer_ChangeMap, dp);
-// 		dp.WriteString(map);
-// 	}
-// 	else if (action == MenuAction_Display)
-// 	{
-// 		char title[128];
-// 		Format(title, sizeof(title), "%T", "Select map menu", param1);
+public int ThirdMapMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	if (action == MenuAction_End) {
+		delete menu;
+	} else if (action == MenuAction_Cancel){
+		BuildVoteMenu(param1);
+	} else if (action == MenuAction_Select) {
+		g_voteType = view_as<voteType>(thirdmap);
 
-// 		Panel panel = view_as<Panel>(param2);
-// 		panel.SetTitle(title);
-// 	}
+		menu.GetItem(param2, g_sVoteMapIndex, sizeof(g_sVoteMapIndex), _, g_sVoteMapName, sizeof(g_sVoteMapName));
 
-// 	return 0;
-// }
+		if(StartVote(param1))
+		{
+			LogMessage("%N starts a vote: change map %s", param1, g_sVoteMapName);
+			//caller is voting for
+			FakeClientCommand(param1, "Vote Yes");
+		}
+		else
+		{
+			g_voteType = view_as<voteType>(None);
+			BuildVoteMenu(param1);
+		}
+	}
+	return 0;
+}
 
-// public Action Timer_ChangeMap(Handle timer, DataPack dp)
-// {
-// 	char map[PLATFORM_MAX_PATH];
+void ParseCampaigns()
+{
+	Handle g_kvCampaigns = CreateKeyValues("VoteCustomCampaigns");
 
-// 	dp.Reset();
-// 	dp.ReadString(map, sizeof(map));
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), THIRDMAP_PATH);
 
-// 	ForceChangeLevel(map, "sm_map Command");
-
-// 	return Plugin_Stop;
-// }
+	if ( !FileToKeyValues(g_kvCampaigns, sPath) ) 
+	{
+		SetFailState("[Vote] File not found: %s", sPath);
+		CloseHandle(g_kvCampaigns);
+		return;
+	}
+	
+	if (!KvGotoFirstSubKey(g_kvCampaigns))
+	{
+		SetFailState("[Vote] File can't read: you dumb noob!");
+		CloseHandle(g_kvCampaigns);
+		return;
+	}
+	
+	for (int i = 0; i < MAX_CAMPAIGN_LIMIT; i++)
+	{
+		KvGetString(g_kvCampaigns,"mapinfo", g_sMapinfo[i], sizeof(g_sMapinfo));
+		KvGetString(g_kvCampaigns,"mapname", g_sMapname[i], sizeof(g_sMapname));
+		
+		if ( !KvGotoNextKey(g_kvCampaigns) )
+		{
+			g_iCount = ++i;
+			break;
+		}
+	}
+}
 
 void AddonsMenu(int iClient)
 {
@@ -898,6 +931,10 @@ bool StartVote(int iClient)
 			else if (g_iSlots == 16)
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 16", iClient);
 		}
+		else if (g_voteType == view_as<voteType>(thirdmap))
+		{
+			FormatEx(sBuffer, sizeof(sBuffer), "Change map: %s", g_sVoteMapName);
+		}
 		else if (g_voteType == view_as<voteType>(addons))
 		{
 			if(g_cvarAddons == 1)
@@ -984,6 +1021,13 @@ void ExecVoteRes(Handle vote)
 			LogMessage("Vote to change slots");	
 		}
 
+		case (view_as<voteType>(thirdmap)):
+		{
+			ChangeCustomMap(vote);
+			LogMessage("Vote to change custom map");	
+		}
+
+
 		case (view_as<voteType>(addons)):
 		{
 			ToggleAddons(vote);
@@ -1052,6 +1096,10 @@ void GivePills(Handle vote)
 	{
 		if (IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i))
 		{
+			if(HasPills(i))
+			{
+				continue;
+			}
 			FakeClientCommand(i, "give pain_pills");
 		}
 	}
@@ -1064,6 +1112,13 @@ void ChangeSlots(Handle vote)
 	DisplayBuiltinVotePass(vote, "Limiting Slots...");
 	SetConVarInt(cvarMvMaxPlayers, g_iSlots);
 	CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Slots {default}has limited to {blue}%i", g_iSlots);
+}
+
+void ChangeCustomMap(Handle vote)
+{
+	DisplayBuiltinVotePass(vote, "Change custom map...");
+	ServerCommand("changelevel %s", g_sVoteMapIndex);
+	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Change custom to {blue}%s", g_sVoteMapName);
 }
 
 void ToggleAddons(Handle vote)
@@ -1117,40 +1172,6 @@ public Action RestartMap(Handle timer,any client)
 	return Plugin_Continue;
 }
 
-// int LoadMapList(Menu menu)
-// {
-// 	Handle map_array;
-	
-// 	if ((map_array = ReadMapList(g_map_array,
-// 			g_map_serial,
-// 			"sm_map menu",
-// 			MAPLIST_FLAG_CLEARARRAY|MAPLIST_FLAG_MAPSFOLDER))
-// 		!= null)
-// 	{
-// 		g_map_array = map_array;
-// 	}
-	
-// 	if (g_map_array == null)
-// 	{
-// 		return 0;
-// 	}
-	
-// 	menu.RemoveAllItems();
-	
-// 	char map_name[PLATFORM_MAX_PATH];
-// 	int map_count = GetArraySize(g_map_array);
-	
-// 	for (int i = 0; i < map_count; i++)
-// 	{
-// 		char displayName[PLATFORM_MAX_PATH];
-// 		GetArrayString(g_map_array, i, map_name, sizeof(map_name));
-// 		GetMapDisplayName(map_name, displayName, sizeof(displayName));
-// 		menu.AddItem(map_name, displayName);
-// 	}
-	
-// 	return map_count;
-// }
-
 void LoadConfig(Handle vote)
 {
 	DisplayBuiltinVotePass(vote, "Matchmode Loaded");
@@ -1158,4 +1179,16 @@ void LoadConfig(Handle vote)
 		ServerCommand("sm_resetmatch");
 	}
 	ServerCommand("sm_forcematch %s", g_sCfg);
+}
+
+bool HasPills(int iClient)
+{
+	int item = GetPlayerWeaponSlot(iClient, 4);
+	if (IsValidEdict(item))
+	{
+		char buffer[64];
+		GetEdictClassname(item, buffer, sizeof(buffer));
+		return StrEqual(buffer, "weapon_pain_pills");
+	}
+	return false;
 }
