@@ -990,7 +990,9 @@ public void VoteResultHandler(Handle vote, int num_votes, int num_clients, \
 	for (int i = 0; i < num_items; i++) {
 		if (item_info[i][BUILTINVOTEINFO_ITEM_INDEX] == BUILTINVOTES_VOTE_YES) {
 			if (item_info[i][BUILTINVOTEINFO_ITEM_VOTES] > (num_votes / 2)) {
-				ExecVoteRes(vote);
+				CreateTimer(3.0, ExecVoteRes, _);
+				DisplayBuiltinVotePass(vote, "Vote Pass");
+				// ExecVoteRes(vote);
 				return;
 			}
 		}
@@ -999,57 +1001,57 @@ public void VoteResultHandler(Handle vote, int num_votes, int num_clients, \
 	DisplayBuiltinVoteFail(vote, BuiltinVoteFail_Loses);
 }
 
-void ExecVoteRes(Handle vote)
+public Action ExecVoteRes(Handle timer, any client)
 {
 	switch (g_voteType)
 	{
 		case (view_as<voteType>(hp)):
 		{
-			RecoveryHealth(vote);
+			RecoveryHealth();
 			LogMessage("Vote to give hp");	
 		}
 
 		case (view_as<voteType>(pills)):
 		{
-			GivePills(vote);
+			GivePills();
 			LogMessage("Vote to give pills");	
 		}
 
 		case (view_as<voteType>(slots)):
 		{
-			ChangeSlots(vote);
+			ChangeSlots();
 			LogMessage("Vote to change slots");	
 		}
 
 		case (view_as<voteType>(thirdmap)):
 		{
-			ChangeCustomMap(vote);
+			ChangeCustomMap();
 			LogMessage("Vote to change custom map");	
 		}
 
 
 		case (view_as<voteType>(addons)):
 		{
-			ToggleAddons(vote);
+			ToggleAddons();
 			LogMessage("Vote to toggle addons");	
 		}
 
 		case (view_as<voteType>(ready)):
 		{
-			ToggleReady(vote);
+			ToggleReady();
 			LogMessage("Vote to toggle ready");	
 		}
 
 		case (view_as<voteType>(config)):
 		{
-			LoadConfig(vote);
+			LoadConfig();
 			LogMessage("Vote to change config pass");	
 		}
 	}
 
 	g_voteType = view_as<voteType>(None);
 
-	return;
+	return Plugin_Handled;
 }
 
 public Action Timer_VoteDelay(Handle timer, any client)
@@ -1058,9 +1060,8 @@ public Action Timer_VoteDelay(Handle timer, any client)
 	return Plugin_Continue;
 }
 
-void RecoveryHealth(Handle vote)
+void RecoveryHealth()
 {
-	DisplayBuiltinVotePass(vote, "Give Health");
 	int flags = GetCommandFlags("give");	
 	SetCommandFlags("give", flags & ~FCVAR_CHEAT);
 	for (int i = 1; i <= MaxClients; i++)
@@ -1087,9 +1088,8 @@ void SetSurvivorTempHealth(int client, int health)
 	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 }
 
-void GivePills(Handle vote)
+void GivePills()
 {
-	DisplayBuiltinVotePass(vote, "Give Pills");
 	int flags = GetCommandFlags("give");	
 	SetCommandFlags("give", flags & ~FCVAR_CHEAT);
 	for (int i = 1; i <= MaxClients; i++)
@@ -1107,23 +1107,20 @@ void GivePills(Handle vote)
 	CPrintToChatAll("{blue}[{default}Vote{blue}] {olive}Pills {default}has distributed to {blue}All survivors");
 }
 
-void ChangeSlots(Handle vote)
+void ChangeSlots()
 {
-	DisplayBuiltinVotePass(vote, "Limiting Slots...");
 	SetConVarInt(cvarMvMaxPlayers, g_iSlots);
 	CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Slots {default}has limited to {blue}%i", g_iSlots);
 }
 
-void ChangeCustomMap(Handle vote)
+void ChangeCustomMap()
 {
-	DisplayBuiltinVotePass(vote, "Change custom map...");
-	ServerCommand("changelevel %s", g_sVoteMapIndex);
-	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Change custom to {blue}%s", g_sVoteMapName);
+	CreateTimer(3.0, ChangeCustomMapDelay, _);
+	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Change custom to {blue}%s {default}in {blue}3s", g_sVoteMapName);
 }
 
-void ToggleAddons(Handle vote)
+void ToggleAddons()
 {
-	DisplayBuiltinVotePass(vote, "Toggle Addons...");
 	if (g_cvarAddons == -1 || g_cvarAddons == 0)
 	{
 		SetConVarString(cvarAddons, "1");
@@ -1142,12 +1139,11 @@ void ToggleAddons(Handle vote)
 	}
 
 	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Map will restart after {blue}3s");
-	CreateTimer(3.0, RestartMap,_);
+	CreateTimer(3.0, RestartMap, _);
 }
 
-void ToggleReady(Handle vote)
+void ToggleReady()
 {
-	DisplayBuiltinVotePass(vote, "Toggle ready...");
 	if (g_cvarReady == 1)
 	{
 		SetConVarInt(cvarReady, 2);
@@ -1160,10 +1156,10 @@ void ToggleReady(Handle vote)
 	}
 
 	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Map will restart after {blue}3s");
-	CreateTimer(3.0, RestartMap,_);
+	CreateTimer(3.0, RestartMap, _);
 }
 
-public Action RestartMap(Handle timer,any client)
+public Action RestartMap(Handle timer, any client)
 {
 	char currentMap[256];
 	GetCurrentMap(currentMap, 256);
@@ -1172,9 +1168,15 @@ public Action RestartMap(Handle timer,any client)
 	return Plugin_Continue;
 }
 
-void LoadConfig(Handle vote)
+public Action ChangeCustomMapDelay(Handle timer, any client)
 {
-	DisplayBuiltinVotePass(vote, "Matchmode Loaded");
+	ServerCommand("changelevel %s", g_sVoteMapIndex);
+
+	return Plugin_Continue;
+}
+
+void LoadConfig()
+{
 	if (LGO_IsMatchModeLoaded()) {
 		ServerCommand("sm_resetmatch");
 	}
