@@ -7,7 +7,7 @@
 #include <l4d2util>
 #undef REQUIRE_PLUGIN
 
-#define PLUGIN_VERSION "1.0.8"
+#define PLUGIN_VERSION "1.0.9"
 
 #define TEST_DEBUG 0
 #define TEST_DEBUG_LOG 1
@@ -40,7 +40,15 @@ static Handle:sdkCullZombie = INVALID_HANDLE;
 static Handle:sdkReplaceTank = INVALID_HANDLE;
 static Address:g_pZombieManager;
 
-int tankClientID = -1;
+ConVar
+	l4d_tankswap_transtype,
+	l4d_tankswap_debug;
+
+int
+	tankClientID = -1;
+
+bool 
+	g_bDebug;
 
 public Plugin:myinfo = 
 {
@@ -58,8 +66,13 @@ public OnPluginStart()
 	PrepSDKCalls();
 
 	CreateConVar("l4d2_tankswap_version", PLUGIN_VERSION, " Version of L4D2 Tank Swap on this server ");
-	cvar_SurrenderTimeLimit = CreateConVar("l4d2_tankswap_timelimit", "10", " How many seconds can a primary Tank Player surrender control ");
-	cvar_SurrenderChoiceType = CreateConVar("l4d2_tankswap_choicetype", "2", " 0 - Disabled; 1 - press Button to call Menu; 2 - Menu appears for every Tank ");
+	cvar_SurrenderTimeLimit = CreateConVar("l4d2_tankswap_timelimit", "10", " How many seconds can a primary Tank Player surrender control");
+	cvar_SurrenderChoiceType = CreateConVar("l4d2_tankswap_choicetype", "2", " 0 - Disabled; 1 - press Button to call Menu; 2 - Menu appears for every Tank ", 0, true, 0.0, true, 2.0);
+	l4d_tankswap_transtype = CreateConVar("l4d_tankswap_transtype", "0", "Type for tankswaped infected", 0, true, 0.0, true, 6.0);
+	l4d_tankswap_debug = CreateConVar("l4d_tankswap_debug", "1", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
+
+	g_bDebug = GetConVarBool(l4d_tankswap_debug);
+	// AutoExecConfig("l4d2_tankswap");
 	
 	RegAdminCmd("sm_taketank", TS_CMD_TakeTank, ADMFLAG_CHEATS, " Take over the current Tank ");
 	
@@ -68,6 +81,18 @@ public OnPluginStart()
 	HookEvent("finale_start", _FinaleStart_Event, EventHookMode_PostNoCopy);
 	HookEvent("round_end", _RoundEnd_Event, EventHookMode_PostNoCopy);
 	HookEvent("tank_spawn",	Event_TankSpawn, EventHookMode_Pre);
+}
+
+public void OnClientPostAdminCheck(int client)
+{
+	if(g_bDebug == false || IsFakeClient(client) || CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
+		return;
+
+	if(!(GetUserFlagBits(client) & ADMFLAG_GENERIC))
+	{
+
+		KickClient(client, "服务器调试中...");
+	}
 }
 
 public Action:_RoundEnd_Event(Handle:event, const String:name[], bool:dontBroadcast)
@@ -85,9 +110,17 @@ public void Event_TankSpawn(Event event, const char[] name, bool dontBroadcast)
 	if (GetConVarInt(cvar_SurrenderChoiceType) == 0) {return;}
 	tankClientID = FindTankClient(-1);
 	// int client = GetClientOfUserId(event.GetInt("userid"))
-	if (!tankClientID || IsFakeClient(tankClientID) || !IsClientInGame(tankClientID)) {return;}
+	if (!tankClientID || IsFakeClient(tankClientID) || !IsClientInGame(tankClientID))
+	{
+		return;
+	}
 	
-	FakeClientCommand(tankClientID, "sm_tankhud"); 
+	int infplayercount = InfectedTeamPlayerCount();
+	if (infplayercount > 1)
+	{
+		FakeClientCommand(tankClientID, "sm_tankhud"); 
+		// PrintToChatAll("Event_TankSpawn sm_tankhud");
+	}
 }
 
 stock Require_L4D2()
@@ -131,9 +164,6 @@ public Action:TS_CMD_TakeTank(client, args)
 	
 	L4D2_ReplaceTank(target, client);
 
-	// if (!IsFakeClient(target))
-	//	 FakeClientCommand(target, "sm_tankhud");
-
 	return Plugin_Handled;
 }
 
@@ -141,10 +171,6 @@ public Action:L4D_OnSpawnTank(const Float:vector[3], const Float:qangle[3])
 {
 	DebugPrintToAll("L4D_OnSpawnTank fired, creating Timer");
 
-	// 无效
-	// tankClientID = FindTankClient(-1);
-	// FakeClientCommand(tankClientID, "sm_tankhud");
-	
 	new Float:PlayerControlDelay = GetConVarFloat(FindConVar("director_tank_lottery_selection_time"));
 	
 	if (!isFinale)
@@ -304,6 +330,8 @@ public TS_MenuCallBack(Handle:menu, MenuAction:action, param1, param2)
 public Action:TS_Display_Auto_MenuToTank(Handle:timer)
 {
 	primaryTankPlayer = FindHumanTankPlayer();
+
+	//AI Tank
 	if (!primaryTankPlayer)
 	{
 		if (HasTeamHumanPlayers(3))
@@ -353,7 +381,7 @@ public Action:TS_Display_Auto_MenuToTank(Handle:timer)
 		SetMenuExitButton(surrenderMenu, false);
 		DisplayMenu(surrenderMenu, primaryTankPlayer, 2 * GetConVarInt(cvar_SurrenderTimeLimit));
 	}
-	
+
 	return Plugin_Stop;
 }
 
@@ -371,59 +399,62 @@ bool:HasTeamHumanPlayers(team)
 	return false;
 }
 
+int InfectedTeamPlayerCount()
+{
+	int count = 0;
+
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i)
+		&& GetClientTeam(i) == 3
+		&& !IsFakeClient(i))
+		{
+			count++;
+		}
+	}
+
+	return count;
+}
+
 public TS_Auto_MenuCallBack(Handle:menu, MenuAction:action, param1, param2)
 {
-	if (action == MenuAction_End) 
+	if (action == MenuAction_End)
 	{
-		if (IsClientInGame(tankClientID))
-			FakeClientCommand(tankClientID, "sm_tankhud"); 
 		CloseHandle(menu);
 	}
-	if (action != MenuAction_Select) 
+	if (action != MenuAction_Select)
 	{
-		if (IsClientInGame(tankClientID))
-			FakeClientCommand(tankClientID, "sm_tankhud"); 
 		return; // only allow a valid choice to pass
 	}
-	
+
 	decl String:number[4];
 	GetMenuItem(menu, param2, number, sizeof(number));
 	DebugPrintToAll("Auto MenuCallBack, param1/client: %s: %N, choice: %s", param1, param1, number);
 
 	new choice = StringToInt(number);
-	if (!choice)
-	{
-		if (IsClientInGame(tankClientID))
-			FakeClientCommand(tankClientID, "sm_tankhud"); 
-		return; // "I want to stay Tank"
-	} 
-		
+	if (!choice) return; // "I want to stay Tank"
 	else if (choice == 99)  // "Anyone but me"
 	{
 		choice = GetRandomEligibleTank();
-		if (GetClientHealth(choice) > 1 && !IsPlayerGhost(choice))
-		{
-			L4D2_ReplaceWithBot(choice, true);
-		}
 		L4D2_ReplaceTank(primaryTankPlayer, choice);
 		
-		PrintToChatAll("\x04[Tank Swap]\x01 Tank Control was surrendered randomly to: \x03%N\x01", choice);
+		PrintToChatAll("\x04[Tank Swap]\x01 Tank 控制权随机交给: \x03%N\x01", choice);
 		DebugPrintToAll("Tank Control was surrendered randomly to: %N", choice);
 	}
 	else	// choice is a specific player id
 	{
-		if (GetClientHealth(choice) > 1 && !IsPlayerGhost(choice))
-		{
-			L4D2_ReplaceWithBot(choice, true);
-		}
 		L4D2_ReplaceTank(primaryTankPlayer, choice);
 		
-		PrintToChatAll("\x04[Tank Swap]\x01 Tank Control was surrendered to: \x03%N\x01", choice);
+		PrintToChatAll("\x04[Tank Swap]\x01 Tank 控制权交给: \x03%N\x01", choice);
 		DebugPrintToAll("Tank Control was surrendered to: %N", choice);
 	}
 
+
 	if (IsClientInGame(tankClientID))
+	{
 		FakeClientCommand(tankClientID, "sm_tankhud"); 
+		// PrintToChatAll("TS_Auto_MenuCallBack End sm_tankhud");
+	}
 }
 
 static bool:IsPlayerGhost(client)
@@ -555,9 +586,21 @@ stock L4D2_ReplaceTank(client, target)
 	{
 		DebugPrintToAll("ReplaceTank invalid, origin tank %N health is below 1", client);
 	}
-	
+
+	int targetClass = 0;
+
+	if (IsPlayerGhost(target) && !IsFakeClient(target))
+	{
+		targetClass = GetEntProp(target, Prop_Send, "m_zombieClass");
+	}
+
 	SDKCall(sdkReplaceTank, g_pZombieManager, client, target);
-}
+
+	if (targetClass > 0)
+	{
+		SetInfectedSwapType(targetClass);
+		// PrintToChatAll("set targetClass [%d] successful", targetClass);
+	}
 
 stock DebugPrintToAll(const String:format[], any:...)
 {
@@ -599,4 +642,10 @@ stock CheatCommand(client, const String:command[], const String:arguments[]="")
 	FakeClientCommand(client, "%s %s", command, arguments);
 	SetCommandFlags(command, flags);
 	SetUserFlagBits(client, admindata);
+}
+
+public void SetInfectedSwapType(int targetClass)
+{
+	SetConVarInt(l4d_tankswap_transtype, targetClass);
+	return;
 }
