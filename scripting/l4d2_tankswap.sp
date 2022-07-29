@@ -85,9 +85,16 @@ public void Event_TankSpawn(Event event, const char[] name, bool dontBroadcast)
 	if (GetConVarInt(cvar_SurrenderChoiceType) == 0) {return;}
 	tankClientID = FindTankClient(-1);
 	// int client = GetClientOfUserId(event.GetInt("userid"))
-	if (!tankClientID || IsFakeClient(tankClientID) || !IsClientInGame(tankClientID)) {return;}
+	if (!tankClientID || IsFakeClient(tankClientID) || !IsClientInGame(tankClientID))
+	{
+		return;
+	}
 	
-	FakeClientCommand(tankClientID, "sm_tankhud"); 
+	int infplayercount = InfectedTeamPlayerCount();
+	if (infplayercount > 2)
+	{
+		FakeClientCommand(tankClientID, "sm_tankhud"); 
+	}
 }
 
 stock Require_L4D2()
@@ -131,9 +138,6 @@ public Action:TS_CMD_TakeTank(client, args)
 	
 	L4D2_ReplaceTank(target, client);
 
-	// if (!IsFakeClient(target))
-	//	 FakeClientCommand(target, "sm_tankhud");
-
 	return Plugin_Handled;
 }
 
@@ -141,10 +145,6 @@ public Action:L4D_OnSpawnTank(const Float:vector[3], const Float:qangle[3])
 {
 	DebugPrintToAll("L4D_OnSpawnTank fired, creating Timer");
 
-	// 无效
-	// tankClientID = FindTankClient(-1);
-	// FakeClientCommand(tankClientID, "sm_tankhud");
-	
 	new Float:PlayerControlDelay = GetConVarFloat(FindConVar("director_tank_lottery_selection_time"));
 	
 	if (!isFinale)
@@ -371,18 +371,31 @@ bool:HasTeamHumanPlayers(team)
 	return false;
 }
 
+int InfectedTeamPlayerCount()
+{
+	int count = 0;
+
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i)
+		&& GetClientTeam(i) == 3
+		&& !IsFakeClient(i))
+		{
+			count++;
+		}
+	}
+
+	return count;
+}
+
 public TS_Auto_MenuCallBack(Handle:menu, MenuAction:action, param1, param2)
 {
 	if (action == MenuAction_End) 
 	{
-		if (IsClientInGame(tankClientID))
-			FakeClientCommand(tankClientID, "sm_tankhud"); 
 		CloseHandle(menu);
 	}
 	if (action != MenuAction_Select) 
 	{
-		if (IsClientInGame(tankClientID))
-			FakeClientCommand(tankClientID, "sm_tankhud"); 
 		return; // only allow a valid choice to pass
 	}
 	
@@ -393,8 +406,6 @@ public TS_Auto_MenuCallBack(Handle:menu, MenuAction:action, param1, param2)
 	new choice = StringToInt(number);
 	if (!choice)
 	{
-		if (IsClientInGame(tankClientID))
-			FakeClientCommand(tankClientID, "sm_tankhud"); 
 		return; // "I want to stay Tank"
 	} 
 		
@@ -423,7 +434,9 @@ public TS_Auto_MenuCallBack(Handle:menu, MenuAction:action, param1, param2)
 	}
 
 	if (IsClientInGame(tankClientID))
+	{
 		FakeClientCommand(tankClientID, "sm_tankhud"); 
+	}
 }
 
 static bool:IsPlayerGhost(client)
@@ -555,8 +568,19 @@ stock L4D2_ReplaceTank(client, target)
 	{
 		DebugPrintToAll("ReplaceTank invalid, origin tank %N health is below 1", client);
 	}
-	
+
 	SDKCall(sdkReplaceTank, g_pZombieManager, client, target);
+
+	//替换时如果目标是灵魂状态，将client设置为对应特感的灵魂状态以适配l4d2_fix_spawn_order
+	if (IsPlayerGhost(target) && !IsFakeClient(target))
+	{
+		int targetClass = GetEntProp(target, Prop_Send, "m_zombieClass");
+		if (targetClass < 1 || targetClass > 6)
+		{
+			return;
+		}
+		L4D_SetClass(client, targetClass);
+	}
 }
 
 stock DebugPrintToAll(const String:format[], any:...)
