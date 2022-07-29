@@ -43,7 +43,7 @@ public void Event_WitchKilled(Event hEvent, const char[] sEventName, bool bDontB
 	// 获取杀死witch玩家
 	int client = GetClientOfUserId(hEvent.GetInt("userid"));
 
-	if (!IsClientInGame(client) || !IsPlayerAlive(client) || IsFakeClient(client)) return;
+	if (!IsPlayerInGame(client) || !IsPlayerAlive(client) || IsFakeClient(client)) return;
 
 	// 判定不为生还者return
 	if (GetClientTeam(client) != L4D2Team_Survivor) return;
