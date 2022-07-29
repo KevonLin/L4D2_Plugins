@@ -7,12 +7,12 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.8"
+#define PLUGIN_VERSION "1.8.1"
 
 public Plugin myinfo = 
 {
 	name = "L4D2 Tank Facts Announce",
-	author = "Forgetest (credit to Griffin and Blade)",
+	author = "Forgetest (credit to Griffin and Blade), KevonLin",
 	description = "Announce damage dealt to survivors by tank",
 	version = PLUGIN_VERSION,
 	url = "https://github.com/Target5150/MoYu_Server_Stupid_Plugins"
@@ -258,7 +258,7 @@ Action Timer_CheckTank(Handle timer, int oldtankclient)
 void PrintTankSkill()
 {
 	int tankclient = GetTankClient();
-	if (!tankclient) return;
+	if (!IsValidPlayerIndex(tankclient)) return;
 	
 	char name[MAX_NAME_LENGTH];
 	if (IsFakeClient(tankclient))
@@ -353,4 +353,8 @@ stock int GetTankClient()
 	}
 
 	return tankclient;
+}
+
+bool IsValidPlayerIndex(int clientid) {
+	return ( (clientid > 0) && (clientid <= MaxClients) );
 }
