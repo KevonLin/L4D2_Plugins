@@ -43,6 +43,8 @@ public void Event_WitchKilled(Event hEvent, const char[] sEventName, bool bDontB
 	// 获取杀死witch玩家
 	int client = GetClientOfUserId(hEvent.GetInt("userid"));
 
+	if (!IsValidPlayerIndex(client)) return;
+
 	if (!IsClientInGame(client) || !IsPlayerAlive(client) || IsFakeClient(client)) return;
 
 	// 判定不为生还者return
@@ -103,4 +105,9 @@ void SetSurvivorTempHealth(int client, int health)
 {
 	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", float(health));
 	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+}
+
+bool IsValidPlayerIndex(int client)
+{
+	return ( (client > 0) && (client <= MaxClients) );
 }
