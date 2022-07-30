@@ -11,7 +11,8 @@
 
 #define MATCHMODES_PATH		"configs/matchmodes.txt"
 #define TRANSLATION_FILE 	"l4d2_votemenu.phrases"
-#define THIRDMAP_PATH		"data/l4d2_votemenu_custommap.txt"
+#define CUSTOMMAP_PATH		"data/l4d2_votemenu_custommap.txt"
+#define NEXTMAP_PATH		"data/l4d2_votemenu_nextmap.txt"
 
 #define MaxHP 100
 #define MAX_CAMPAIGN_LIMIT 64
@@ -51,17 +52,22 @@ ConVar
 char
 	g_sCfg[32],
 	g_sSlots[64],
-	g_sMapinfo[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
-	g_sMapname[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
-	g_sVoteMapIndex[MAX_NAME_LENGTH],
-	g_sVoteMapName[MAX_NAME_LENGTH];
+	g_customMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
+	g_customMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
+	g_nextMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
+	g_nextMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
+	g_sVoteCustomMapIndex[MAX_NAME_LENGTH],
+	g_sVoteCustomMapName[MAX_NAME_LENGTH],
+	g_sVoteNextMapIndex[MAX_NAME_LENGTH],
+	g_sVoteNextMapName[MAX_NAME_LENGTH];
 
 int
 	// g_map_serial = -1,
 	g_cvarAddons = -2,
 	g_cvarReady = -1,
 	g_iSlots,
-	g_iCount;
+	g_customMapCount,
+	g_nextMapCount;
 
 bool
 	g_bVoteEnable = false;
@@ -106,7 +112,8 @@ public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr
 
 public void OnPluginStart()
 {
-	ParseCampaigns();
+	ParseCustomCampaigns();
+	ParseNextCampaigns();
 	
 	char sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, sizeof(sPath), "translations/"...TRANSLATION_FILE...".txt");
@@ -129,7 +136,7 @@ public void OnPluginStart()
 	sm_votemenu_givehp = CreateConVar("sm_votemenu_givehp", "1", "Give hp Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_pills = CreateConVar("sm_votemenu_pills", "1", "Give hp Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_changeslots = CreateConVar("sm_votemenu_changeslots", "1", "Change slots Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_nextmap = CreateConVar("sm_votemenu_nextmap", "0", "Change next map Enable", 0, true, 0.0, true, 1.0);
+	sm_votemenu_nextmap = CreateConVar("sm_votemenu_nextmap", "1", "Change next map Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_changethirdmaps = CreateConVar("sm_votemenu_changethirdmaps", "1", "Change custom maps Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_ban = CreateConVar("sm_votemenu_ban", "0", "Ban Enable", 0, true, 0.0, true, 1.0);
 	sm_votemenu_kick = CreateConVar("sm_votemenu_kick", "0", "Kick Enable", 0, true, 0.0, true, 1.0);
@@ -152,10 +159,30 @@ public void OnPluginStart()
 	HookConVarChange(cvarAddons, CVarChanged);
 	HookConVarChange(cvarAddons, CVarChanged);
 
+	HookEvent("round_start", RoundStart_Event, EventHookMode_PostNoCopy);
+	HookEvent("round_end", RoundEnd_Event, EventHookMode_PostNoCopy);
+
 	RegConsoleCmd("sm_votemenu", Command_Votes, "Open vote menu.");
 	RegConsoleCmd("sm_votes", Command_Votes, "Open vote menu.");
 
 	AutoExecConfig(true, "l4d2_votemenu");
+}
+
+public void RoundStart_Event(Event hEvent, const char[] eName, bool dontBroadcast)
+{
+	g_sVoteNextMapIndex = "";
+	return;
+}
+
+public void RoundEnd_Event(Event hEvent, const char[] eName, bool dontBroadcast)
+{
+	if(strcmp(g_sVoteNextMapIndex, "") != 0)
+	{
+		ServerCommand("changelevel %s", g_sVoteNextMapIndex);
+		return;
+	}
+
+	return;
 }
 
 public void OnMapStart()
@@ -173,12 +200,6 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 	g_cvarAddons = GetConVarInt(cvarAddons);
 	g_cvarReady = GetConVarInt(cvarReady);
 }
-
-
-// public void OnConfigsExecuted()
-// {
-// 	LoadMapList(g_MapList);
-// }
 
 public Action Command_Votes(int iClient, int iArgs)
 {
@@ -316,7 +337,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 					return 0;
 				}
 
-				// MapMenu(param1);
+				NextMapMenu(param1);
 			}
 			else if (strcmp(item, "changethirdmaps") == 0)
 			{
@@ -536,16 +557,16 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 	return 0;
 }
 
-void ThirdMapMenu(int iClient)
+void NextMapMenu(int iClient)
 {
 	char sBuffer[64];
-	Menu vMenu = new Menu(ThirdMapMenuHandler);
+	Menu vMenu = new Menu(NextMapMenuHandler);
 	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select map menu" ,iClient);
 	vMenu.SetTitle(sBuffer);
 	
-	for (int i = 0; i < g_iCount; i++)
+	for (int i = 0; i < g_nextMapCount; i++)
 	{
-		vMenu.AddItem(g_sMapinfo[i], g_sMapname[i]);
+		vMenu.AddItem(g_nextMapIndex[i], g_nextMapName[i]);
 	}
 
 	vMenu.ExitBackButton = true;
@@ -553,20 +574,20 @@ void ThirdMapMenu(int iClient)
 	vMenu.Display(iClient, 30);
 }
 
-public int ThirdMapMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+public int NextMapMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 {
 	if (action == MenuAction_End) {
 		delete menu;
 	} else if (action == MenuAction_Cancel){
 		BuildVoteMenu(param1);
 	} else if (action == MenuAction_Select) {
-		g_voteType = view_as<voteType>(thirdmap);
+		g_voteType = view_as<voteType>(nextmap);
 
-		menu.GetItem(param2, g_sVoteMapIndex, sizeof(g_sVoteMapIndex), _, g_sVoteMapName, sizeof(g_sVoteMapName));
+		menu.GetItem(param2, g_sVoteNextMapIndex, sizeof(g_sVoteNextMapIndex), _, g_sVoteNextMapName, sizeof(g_sVoteNextMapName));
 
 		if(StartVote(param1))
 		{
-			LogMessage("%N starts a vote: change map %s", param1, g_sVoteMapName);
+			LogMessage("%N starts a vote: change map %s", param1, g_sVoteNextMapName);
 			//caller is voting for
 			FakeClientCommand(param1, "Vote Yes");
 		}
@@ -579,12 +600,12 @@ public int ThirdMapMenuHandler(Menu menu, MenuAction action, int param1, int par
 	return 0;
 }
 
-void ParseCampaigns()
+void ParseNextCampaigns()
 {
-	Handle g_kvCampaigns = CreateKeyValues("VoteCustomCampaigns");
+	Handle g_kvCampaigns = CreateKeyValues("VoteNextCampaigns");
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), THIRDMAP_PATH);
+	BuildPath(Path_SM, sPath, sizeof(sPath), NEXTMAP_PATH);
 
 	if ( !FileToKeyValues(g_kvCampaigns, sPath) ) 
 	{
@@ -602,12 +623,89 @@ void ParseCampaigns()
 	
 	for (int i = 0; i < MAX_CAMPAIGN_LIMIT; i++)
 	{
-		KvGetString(g_kvCampaigns,"mapinfo", g_sMapinfo[i], sizeof(g_sMapinfo));
-		KvGetString(g_kvCampaigns,"mapname", g_sMapname[i], sizeof(g_sMapname));
+		KvGetString(g_kvCampaigns,"mapinfo", g_nextMapIndex[i], sizeof(g_nextMapIndex));
+		KvGetString(g_kvCampaigns,"mapname", g_nextMapName[i], sizeof(g_nextMapName));
 		
 		if ( !KvGotoNextKey(g_kvCampaigns) )
 		{
-			g_iCount = ++i;
+			g_nextMapCount = ++i;
+			break;
+		}
+	}
+}
+
+void ThirdMapMenu(int iClient)
+{
+	char sBuffer[64];
+	Menu vMenu = new Menu(ThirdMapMenuHandler);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select map menu" ,iClient);
+	vMenu.SetTitle(sBuffer);
+	
+	for (int i = 0; i < g_customMapCount; i++)
+	{
+		vMenu.AddItem(g_customMapIndex[i], g_customMapName[i]);
+	}
+
+	vMenu.ExitBackButton = true;
+	vMenu.ExitButton = true;
+	vMenu.Display(iClient, 30);
+}
+
+public int ThirdMapMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	if (action == MenuAction_End) {
+		delete menu;
+	} else if (action == MenuAction_Cancel){
+		BuildVoteMenu(param1);
+	} else if (action == MenuAction_Select) {
+		g_voteType = view_as<voteType>(thirdmap);
+
+		menu.GetItem(param2, g_sVoteCustomMapIndex, sizeof(g_sVoteCustomMapIndex), _, g_sVoteCustomMapName, sizeof(g_sVoteCustomMapName));
+
+		if(StartVote(param1))
+		{
+			LogMessage("%N starts a vote: change map %s", param1, g_sVoteCustomMapName);
+			//caller is voting for
+			FakeClientCommand(param1, "Vote Yes");
+		}
+		else
+		{
+			g_voteType = view_as<voteType>(None);
+			BuildVoteMenu(param1);
+		}
+	}
+	return 0;
+}
+
+void ParseCustomCampaigns()
+{
+	Handle g_kvCampaigns = CreateKeyValues("VoteCustomCampaigns");
+
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), CUSTOMMAP_PATH);
+
+	if ( !FileToKeyValues(g_kvCampaigns, sPath) ) 
+	{
+		SetFailState("[Vote] File not found: %s", sPath);
+		CloseHandle(g_kvCampaigns);
+		return;
+	}
+	
+	if (!KvGotoFirstSubKey(g_kvCampaigns))
+	{
+		SetFailState("[Vote] File can't read: you dumb noob!");
+		CloseHandle(g_kvCampaigns);
+		return;
+	}
+	
+	for (int i = 0; i < MAX_CAMPAIGN_LIMIT; i++)
+	{
+		KvGetString(g_kvCampaigns,"mapinfo", g_customMapIndex[i], sizeof(g_customMapIndex));
+		KvGetString(g_kvCampaigns,"mapname", g_customMapName[i], sizeof(g_customMapName));
+		
+		if ( !KvGotoNextKey(g_kvCampaigns) )
+		{
+			g_customMapCount = ++i;
 			break;
 		}
 	}
@@ -931,9 +1029,13 @@ bool StartVote(int iClient)
 			else if (g_iSlots == 16)
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 16", iClient);
 		}
+		else if (g_voteType == view_as<voteType>(nextmap))
+		{
+			FormatEx(sBuffer, sizeof(sBuffer), "Vote Next Map: %s", g_sVoteNextMapName);
+		}
 		else if (g_voteType == view_as<voteType>(thirdmap))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "Change map: %s", g_sVoteMapName);
+			FormatEx(sBuffer, sizeof(sBuffer), "Change Custom Map: %s", g_sVoteCustomMapName);
 		}
 		else if (g_voteType == view_as<voteType>(addons))
 		{
@@ -1023,12 +1125,17 @@ public Action ExecVoteRes(Handle timer, any client)
 			LogMessage("Vote to change slots");	
 		}
 
+		case (view_as<voteType>(nextmap)):
+		{
+			ChangeNextMap();
+			LogMessage("Vote next map");	
+		}
+
 		case (view_as<voteType>(thirdmap)):
 		{
 			ChangeCustomMap();
 			LogMessage("Vote to change custom map");	
 		}
-
 
 		case (view_as<voteType>(addons)):
 		{
@@ -1113,10 +1220,15 @@ void ChangeSlots()
 	CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Slots {default}has limited to {blue}%i", g_iSlots);
 }
 
+void ChangeNextMap()
+{
+	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Next map set to {blue}%s", g_sVoteNextMapName);
+}
+
 void ChangeCustomMap()
 {
 	CreateTimer(3.0, ChangeCustomMapDelay, _);
-	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Change custom to {blue}%s {default}in {blue}3s", g_sVoteMapName);
+	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Change custom to {blue}%s {default}in {blue}3s", g_sVoteCustomMapName);
 }
 
 void ToggleAddons()
@@ -1170,7 +1282,7 @@ public Action RestartMap(Handle timer, any client)
 
 public Action ChangeCustomMapDelay(Handle timer, any client)
 {
-	ServerCommand("changelevel %s", g_sVoteMapIndex);
+	ServerCommand("changelevel %s", g_sVoteCustomMapIndex);
 
 	return Plugin_Continue;
 }
