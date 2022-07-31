@@ -23,7 +23,7 @@
 	"5"
 	{
 		"mapinfo"		"c5m1_waterfront"
-		"mapname"		"Hard Rain (5 Maps)"
+		"mapname"		"The Parish (5 Maps)"
 	}
 	"6"
 	{
