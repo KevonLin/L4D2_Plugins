@@ -62,6 +62,7 @@ char
 
 int
 	// g_map_serial = -1,
+	g_cvarReady,
 	g_iSlots,
 	g_customMapCount,
 	g_nextMapCount;
@@ -70,7 +71,6 @@ bool
 	g_bDebug,
 	g_bVoteEnable = false,
 	g_cvarAddons,
-	g_cvarReady,
 	g_cvarGiveHP,
 	g_cvarGivePills,
 	g_cvarChangeSlots,
@@ -153,7 +153,7 @@ public void OnPluginStart()
 	sm_votemenu_kick = CreateConVar("sm_votemenu_kick", "0", "Kick Enable");
 	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "0", "Mute Enable");
 	sm_votemenu_toggleaddons = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
-	sm_votemenu_toggleready = CreateConVar("sm_votemenu_toggleready", "1", "Toggle ready Enable");
+	sm_votemenu_toggleready = CreateConVar("sm_votemenu_toggleready", "0", "Toggle ready Enable");
 	sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
 	sm_match_player_limit = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
 	l4d_votemenu_debug = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
@@ -178,7 +178,7 @@ public void OnPluginStart()
 	g_cvarAddons = GetConVarBool(cvarAddons);
 
 	if (cvarReady != INVALID_HANDLE)
-		g_cvarReady = GetConVarBool(cvarReady);
+		g_cvarReady = GetConVarInt(cvarReady);
 
 	HookConVarChange(sm_votemenu_givehp, CVarChanged);
 	HookConVarChange(sm_votemenu_pills, CVarChanged);	
@@ -249,7 +249,7 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 {
 	g_cvarAddons = GetConVarBool(cvarAddons);
 	if (cvarReady != INVALID_HANDLE)
-		g_cvarReady = GetConVarBool(cvarReady);
+		g_cvarReady = GetConVarInt(cvarReady);
 
 	g_cvarGiveHP = GetConVarBool(sm_votemenu_givehp);
 	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
@@ -920,7 +920,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 
 		if(strcmp(item, "enableready") == 0)
 		{
-			if (g_cvarReady)
+			if (g_cvarReady == 1)
 			{
 				CPrintToChat(param1, "Ready plugin was already enabled");
 				ReadyMenu(param1);
@@ -941,7 +941,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		}
 		else if(strcmp(item, "disableready") == 0)
 		{
-			if (!g_cvarReady)
+			if (g_cvarReady == 2)
 			{
 				CPrintToChat(param1, "Ready plugin was already disabled");
 				ReadyMenu(param1);
@@ -1153,11 +1153,11 @@ bool StartVote(int iClient)
 		}
 		else if (g_voteType == view_as<voteType>(ready))
 		{
-			if(g_cvarReady)
+			if(g_cvarReady == 2)
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable ready", iClient);
 			}
-			else if(!g_cvarReady)
+			else if(g_cvarReady == 1)
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable ready", iClient);
 			}
@@ -1354,14 +1354,14 @@ void ToggleAddons()
 
 void ToggleReady()
 {
-	if (g_cvarReady)
+	if (g_cvarReady == 1)
 	{
-		SetConVarBool(cvarReady, false);
+		SetConVarInt(cvarReady, 1);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has toggle to {blue}disalbe");
 	}
-	else if (!g_cvarReady)
+	else if (g_cvarReady == 2)
 	{
-		SetConVarBool(cvarReady, true);
+		SetConVarInt(cvarReady, 2);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has toggle to {blue}enalbe");
 	}
 
