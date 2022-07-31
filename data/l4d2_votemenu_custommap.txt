@@ -3,12 +3,12 @@
 	"1"
 	{
 		"mapinfo"		"dkr_m1_motel"
-		"mapname"		"Dark Carnival Remix(C2 remix)"
+		"mapname"		"Dark Carnival Remix(C2 Remix)"
 	}
 	"2"
 	{
 		"mapinfo"		"c5m1_darkwaterfront"
-		"mapname"		"Dark Waterfront(v3)"
+		"mapname"		"Dark Waterfront(C5 Remix)"
 	}
 	"3"
 	{
@@ -17,7 +17,7 @@
 	}
 	"4"
 	{
-		"mapinfo"		"l4d2_daybreak01_hotel"
+		"mapinfo"		"l4d2_oldbreak01_hotel"
 		"mapname"		"Day Break"
 	}
 	"5"
