@@ -42,11 +42,9 @@ ConVar
 	sm_votemenu_toggleready,
 	sm_votemenu_changeconfigs,
 	sm_match_player_limit,
+	l4d_votemenu_debug,
 	cvarMvMaxPlayers,
 	cvarAddons,
-	cvarConsistency,
-	cvarPure,
-	cvarPureKickClients,
 	cvarReady;
 
 char
@@ -59,18 +57,31 @@ char
 	g_sVoteCustomMapIndex[MAX_NAME_LENGTH],
 	g_sVoteCustomMapName[MAX_NAME_LENGTH],
 	g_sVoteNextMapIndex[MAX_NAME_LENGTH],
-	g_sVoteNextMapName[MAX_NAME_LENGTH];
+	g_sVoteNextMapName[MAX_NAME_LENGTH],
+	g_sVoteNextMapCmdIndex[MAX_NAME_LENGTH];
 
 int
 	// g_map_serial = -1,
-	g_cvarAddons = -2,
-	g_cvarReady = -1,
 	g_iSlots,
 	g_customMapCount,
 	g_nextMapCount;
 
 bool
-	g_bVoteEnable = false;
+	g_bDebug,
+	g_bVoteEnable = false,
+	g_cvarAddons,
+	g_cvarReady,
+	g_cvarGiveHP,
+	g_cvarGivePills,
+	g_cvarChangeSlots,
+	g_cvarNextMap,
+	g_cvarThirdMap,
+	g_cvarBan,
+	g_cvarKick,
+	g_cvarMute,
+	g_cvarToggleAddons, 
+	g_cvarToggleReady,
+	g_cvarChangeConfigs;
 
 enum voteType
 {
@@ -95,7 +106,7 @@ public Plugin myinfo =
 	name = "Vote Menu",
 	author = "Kevonlin",
 	description = "Vote Menu.",
-	version = "1.4.4",
+	version = "1.5",
 	url = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -131,33 +142,59 @@ public void OnPluginStart()
 		SetFailState("Couldn't load matchmodes.txt!");
 	}
 
-	sm_votemenu_enable = CreateConVar("sm_votemenu_enable", "1", "Plugin Enable", 0, true, 0.0, true, 1.0);
+	sm_votemenu_enable = CreateConVar("sm_votemenu_enable", "1", "Plugin Enable");
 	sm_votemenu_timedelay = CreateConVar("sm_votemenu_timedelay", "30.0", "Vote time interval", 0, true, 0.0);
-	sm_votemenu_givehp = CreateConVar("sm_votemenu_givehp", "1", "Give hp Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_pills = CreateConVar("sm_votemenu_pills", "1", "Give hp Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_changeslots = CreateConVar("sm_votemenu_changeslots", "1", "Change slots Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_nextmap = CreateConVar("sm_votemenu_nextmap", "1", "Change next map Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_changethirdmaps = CreateConVar("sm_votemenu_changethirdmaps", "1", "Change custom maps Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_ban = CreateConVar("sm_votemenu_ban", "0", "Ban Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_kick = CreateConVar("sm_votemenu_kick", "0", "Kick Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "0", "Mute Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_toggleaddons = CreateConVar("sm_votemenu_toggleaddons", "0", "Toggle addons Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_toggleready = CreateConVar("sm_votemenu_toggleready", "0", "Toggle ready Enable", 0, true, 0.0, true, 1.0);
-	sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable", 0, true, 0.0, true, 1.0);
+	sm_votemenu_givehp = CreateConVar("sm_votemenu_givehp", "1", "Give hp Enable");
+	sm_votemenu_pills = CreateConVar("sm_votemenu_pills", "1", "Give hp Enable");
+	sm_votemenu_changeslots = CreateConVar("sm_votemenu_changeslots", "1", "Change slots Enable");
+	sm_votemenu_nextmap = CreateConVar("sm_votemenu_nextmap", "1", "Change next map Enable");
+	sm_votemenu_changethirdmaps = CreateConVar("sm_votemenu_changethirdmaps", "1", "Change custom maps Enable");
+	sm_votemenu_ban = CreateConVar("sm_votemenu_ban", "0", "Ban Enable");
+	sm_votemenu_kick = CreateConVar("sm_votemenu_kick", "0", "Kick Enable");
+	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "0", "Mute Enable");
+	sm_votemenu_toggleaddons = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
+	sm_votemenu_toggleready = CreateConVar("sm_votemenu_toggleready", "1", "Toggle ready Enable");
+	sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
 	sm_match_player_limit = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
+	l4d_votemenu_debug = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
+
+	g_cvarGiveHP = GetConVarBool(sm_votemenu_givehp);
+	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
+	g_cvarChangeSlots = GetConVarBool(sm_votemenu_changeslots);
+	g_cvarNextMap = GetConVarBool(sm_votemenu_nextmap);
+	g_cvarThirdMap = GetConVarBool(sm_votemenu_changethirdmaps);
+	g_cvarBan = GetConVarBool(sm_votemenu_ban);
+	g_cvarKick = GetConVarBool(sm_votemenu_kick);
+	g_cvarMute = GetConVarBool(sm_votemenu_mute);
+	g_cvarToggleAddons = GetConVarBool(sm_votemenu_toggleaddons);
+	g_cvarToggleReady = GetConVarBool(sm_votemenu_toggleready);
+	g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
+	g_bDebug = GetConVarBool(l4d_votemenu_debug);
 
 	cvarMvMaxPlayers = FindConVar("sv_maxplayers");
 	cvarAddons = FindConVar("l4d2_addons_eclipse");
-	cvarConsistency = FindConVar("sv_consistency");
-	cvarPure = FindConVar("sv_pure");
-	cvarPureKickClients = FindConVar("sv_pure_kick_clients");
 	cvarReady = FindConVar("l4d_ready_enabled");
 	
-	g_cvarAddons = GetConVarInt(cvarAddons);
-	g_cvarReady = GetConVarInt(cvarReady);
+	g_cvarAddons = GetConVarBool(cvarAddons);
 
+	if (cvarReady != INVALID_HANDLE)
+		g_cvarReady = GetConVarBool(cvarReady);
+
+	HookConVarChange(sm_votemenu_givehp, CVarChanged);
+	HookConVarChange(sm_votemenu_pills, CVarChanged);	
+	HookConVarChange(sm_votemenu_changeslots, CVarChanged);
+	HookConVarChange(sm_votemenu_nextmap, CVarChanged);	
+	HookConVarChange(sm_votemenu_changethirdmaps, CVarChanged);
+	HookConVarChange(sm_votemenu_ban, CVarChanged);	
+	HookConVarChange(sm_votemenu_kick, CVarChanged);
+	HookConVarChange(sm_votemenu_mute, CVarChanged);	
+	HookConVarChange(sm_votemenu_toggleaddons, CVarChanged);
+	HookConVarChange(sm_votemenu_toggleready, CVarChanged);	
+	HookConVarChange(sm_votemenu_changeconfigs, CVarChanged);	
 	HookConVarChange(cvarAddons, CVarChanged);
-	HookConVarChange(cvarAddons, CVarChanged);
+	
+	if (cvarReady != INVALID_HANDLE)
+		HookConVarChange(cvarReady, CVarChanged);
 
 	HookEvent("round_start", RoundStart_Event, EventHookMode_PostNoCopy);
 	HookEvent("round_end", RoundEnd_Event, EventHookMode_PostNoCopy);
@@ -168,17 +205,30 @@ public void OnPluginStart()
 	AutoExecConfig(true, "l4d2_votemenu");
 }
 
+public void OnClientPostAdminCheck(int client)
+{
+	if(!g_bDebug || IsFakeClient(client) || CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
+	{
+		return;
+	}
+
+	if(!(GetUserFlagBits(client) & ADMFLAG_GENERIC))
+	{
+		KickClient(client, "服务器调试中...");
+	}
+}
+
 public void RoundStart_Event(Event hEvent, const char[] eName, bool dontBroadcast)
 {
-	g_sVoteNextMapIndex = "";
-	return;
+	g_sVoteNextMapCmdIndex = "";
 }
 
 public void RoundEnd_Event(Event hEvent, const char[] eName, bool dontBroadcast)
 {
 	if(strcmp(g_sVoteNextMapIndex, "") != 0)
 	{
-		ServerCommand("changelevel %s", g_sVoteNextMapIndex);
+		g_sVoteNextMapIndex = "";
+		ServerCommand("changelevel %s", g_sVoteNextMapCmdIndex);
 		return;
 	}
 
@@ -197,8 +247,21 @@ public void OnMapEnd()
 
 public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 {
-	g_cvarAddons = GetConVarInt(cvarAddons);
-	g_cvarReady = GetConVarInt(cvarReady);
+	g_cvarAddons = GetConVarBool(cvarAddons);
+	if (cvarReady != INVALID_HANDLE)
+		g_cvarReady = GetConVarBool(cvarReady);
+
+	g_cvarGiveHP = GetConVarBool(sm_votemenu_givehp);
+	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
+	g_cvarChangeSlots = GetConVarBool(sm_votemenu_changeslots);
+	g_cvarNextMap = GetConVarBool(sm_votemenu_nextmap);
+	g_cvarThirdMap = GetConVarBool(sm_votemenu_changethirdmaps);
+	g_cvarBan = GetConVarBool(sm_votemenu_ban);
+	g_cvarKick = GetConVarBool(sm_votemenu_kick);
+	g_cvarMute = GetConVarBool(sm_votemenu_mute);
+	g_cvarToggleAddons = GetConVarBool(sm_votemenu_toggleaddons);
+	g_cvarToggleReady = GetConVarBool(sm_votemenu_toggleready);
+	g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
 }
 
 public Action Command_Votes(int iClient, int iArgs)
@@ -234,28 +297,61 @@ void BuildVoteMenu(int iClient)
 	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Menu name" ,iClient);
 	vMenu.SetTitle(sBuffer);
 	
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give hp" ,iClient);
-	vMenu.AddItem("givehp", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give pills" ,iClient);
-	vMenu.AddItem("givepills", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change slots" ,iClient);
-	vMenu.AddItem("changeslots", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Next map" ,iClient);
-	vMenu.AddItem("nextmap", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change third maps" ,iClient);
-	vMenu.AddItem("changethirdmaps", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Ban players" ,iClient);
-	vMenu.AddItem("banplayers", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Kick players" ,iClient);
-	vMenu.AddItem("kickplayers", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Mute players" ,iClient);
-	vMenu.AddItem("muteplayers", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons" ,iClient);
-	vMenu.AddItem("toggleaddons", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready" ,iClient);
-	vMenu.AddItem("toggleready", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change config" ,iClient);
-	vMenu.AddItem("changeconfig", sBuffer);
+	if (g_cvarGiveHP)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give hp" ,iClient);
+		vMenu.AddItem("givehp", sBuffer);
+	}
+	if (g_cvarGivePills)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give pills" ,iClient);
+		vMenu.AddItem("givepills", sBuffer);
+	}
+	if (g_cvarChangeSlots)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change slots" ,iClient);
+		vMenu.AddItem("changeslots", sBuffer);
+	}
+	if (g_cvarNextMap)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Next map" ,iClient);
+		vMenu.AddItem("nextmap", sBuffer);
+	}
+	if (g_cvarThirdMap)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change third maps" ,iClient);
+		vMenu.AddItem("changethirdmaps", sBuffer);
+	}
+	if (g_cvarBan)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Ban players" ,iClient);
+		vMenu.AddItem("banplayers", sBuffer);
+	}
+	if (g_cvarKick)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Kick players" ,iClient);
+		vMenu.AddItem("kickplayers", sBuffer);
+	}
+	if (g_cvarMute)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Mute players" ,iClient);
+		vMenu.AddItem("muteplayers", sBuffer);
+	}
+	if (g_cvarToggleAddons)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons" ,iClient);
+		vMenu.AddItem("toggleaddons", sBuffer);
+	}
+	if (g_cvarToggleReady)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready" ,iClient);
+		vMenu.AddItem("toggleready", sBuffer);
+	}
+	if (g_cvarChangeConfigs)
+	{
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change config" ,iClient);
+		vMenu.AddItem("changeconfig", sBuffer);
+	}
 
 	vMenu.ExitButton = true;
 	vMenu.Display(iClient, 30);
@@ -275,7 +371,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 
 			if(strcmp(item, "givehp") == 0)
 			{
-				if (sm_votemenu_givehp.IntValue == 0)
+				if (!g_cvarGiveHP)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -297,7 +393,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			}
 			else if(strcmp(item, "givepills") == 0)
 			{
-				if (sm_votemenu_pills.IntValue == 0)
+				if (!g_cvarGivePills)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -319,7 +415,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			}
 			else if(strcmp(item, "changeslots") == 0)
 			{
-				if (sm_votemenu_changeslots.IntValue == 0)
+				if (!g_cvarChangeSlots)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -341,7 +437,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			}
 			else if (strcmp(item, "changethirdmaps") == 0)
 			{
-				if (sm_votemenu_changethirdmaps.IntValue == 0)
+				if (!g_cvarNextMap)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -350,9 +446,9 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 
 				ThirdMapMenu(param1);
 			}
-			else if (param2 == 5)
+			else if (strcmp(item, "banplayers") == 0)
 			{
-				if (sm_votemenu_ban.IntValue == 0)
+				if (!g_cvarBan)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -360,9 +456,9 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 				}
 				// FakeClientCommand(param1, "sm_voteban");
 			}
-			else if (param2 == 6)
+			else if (strcmp(item, "kickplayers") == 0)
 			{
-				if (sm_votemenu_kick.IntValue == 0)
+				if (!g_cvarKick)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -370,9 +466,9 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 				}
 				// FakeClientCommand(param1, "sm_votekick");
 			}
-			else if (param2 == 7)
+			else if (strcmp(item, "muteplayers") == 0)
 			{
-				if (sm_votemenu_mute.IntValue == 0)
+				if (!g_cvarMute)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -382,7 +478,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			}
 			else if (strcmp(item, "toggleaddons") == 0)
 			{
-				if (sm_votemenu_toggleaddons.IntValue == 0)
+				if (!g_cvarToggleAddons)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -391,11 +487,18 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 				
 				AddonsMenu(param1);
 			}
-			else if (param2 == 9)
+			else if (strcmp(item, "toggleready") == 0)
 			{
-				if (sm_votemenu_toggleready.IntValue == 0)
+				if (!g_cvarToggleReady)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
+					BuildVoteMenu(param1);
+					return 0;
+				}
+
+				if (cvarReady == INVALID_HANDLE)
+				{
+					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}Convar was not found.");
 					BuildVoteMenu(param1);
 					return 0;
 				}
@@ -404,7 +507,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			}
 			else if (strcmp(item, "changeconfig") == 0)
 			{
-				if (sm_votemenu_changeconfigs.IntValue == 0)
+				if (!g_cvarChangeConfigs)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -742,7 +845,7 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 
 		if(strcmp(item, "enablemod") == 0)
 		{
-			if (g_cvarAddons == 1)
+			if (g_cvarAddons)
 			{
 				CPrintToChat(param1, "Addons is already Enable");
 				AddonsMenu(param1);
@@ -763,7 +866,7 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 		}
 		else if(strcmp(item, "disablemod") == 0)
 		{
-			if (g_cvarAddons != 1)
+			if (!g_cvarAddons)
 			{
 				CPrintToChat(param1, "Addons is already Disable");
 				AddonsMenu(param1);
@@ -817,7 +920,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 
 		if(strcmp(item, "enableready") == 0)
 		{
-			if (g_cvarReady == 1)
+			if (g_cvarReady)
 			{
 				CPrintToChat(param1, "Ready plugin was already enabled");
 				ReadyMenu(param1);
@@ -838,7 +941,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		}
 		else if(strcmp(item, "disableready") == 0)
 		{
-			if (g_cvarReady == 2 || g_cvarReady == 0)
+			if (!g_cvarReady)
 			{
 				CPrintToChat(param1, "Ready plugin was already disabled");
 				ReadyMenu(param1);
@@ -1039,22 +1142,22 @@ bool StartVote(int iClient)
 		}
 		else if (g_voteType == view_as<voteType>(addons))
 		{
-			if(g_cvarAddons == 1)
+			if(g_cvarAddons)
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable addons", iClient);
 			}
-			else if(g_cvarAddons != 1)
+			else if(!g_cvarAddons)
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable addons", iClient);
 			}
 		}
 		else if (g_voteType == view_as<voteType>(ready))
 		{
-			if(g_cvarReady == 1)
+			if(g_cvarReady)
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable ready", iClient);
 			}
-			else if(g_cvarReady == 2 || g_cvarReady == 0)
+			else if(!g_cvarReady)
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable ready", iClient);
 			}
@@ -1222,6 +1325,7 @@ void ChangeSlots()
 
 void ChangeNextMap()
 {
+	g_sVoteNextMapCmdIndex = g_sVoteNextMapIndex;
 	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Next map set to {blue}%s", g_sVoteNextMapName);
 }
 
@@ -1233,20 +1337,14 @@ void ChangeCustomMap()
 
 void ToggleAddons()
 {
-	if (g_cvarAddons == -1 || g_cvarAddons == 0)
+	if (g_cvarAddons)
 	{
-		SetConVarString(cvarAddons, "1");
-		SetConVarString(cvarConsistency, "0");
-		SetConVarBool(cvarPure, false);
-		SetConVarString(cvarPureKickClients, "0");
+		SetConVarBool(cvarAddons, false);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Addons {default}has toggle to {blue}disalbe");
 	}
-	else if (g_cvarAddons == 1)
+	else if (!g_cvarAddons)
 	{
-		SetConVarString(cvarAddons, "0");
-		SetConVarString(cvarConsistency, "1");
-		SetConVarString(cvarPure, "2");
-		SetConVarString(cvarPureKickClients, "1");
+		SetConVarBool(cvarAddons, true);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Addons {default}has toggle to {blue}enable");
 	}
 
@@ -1256,14 +1354,14 @@ void ToggleAddons()
 
 void ToggleReady()
 {
-	if (g_cvarReady == 1)
+	if (g_cvarReady)
 	{
-		SetConVarInt(cvarReady, 2);
+		SetConVarBool(cvarReady, false);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has toggle to {blue}disalbe");
 	}
-	else if (g_cvarReady == 0 || g_cvarReady == 2)
+	else if (!g_cvarReady)
 	{
-		SetConVarInt(cvarReady, 1);
+		SetConVarBool(cvarReady, true);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has toggle to {blue}enalbe");
 	}
 
