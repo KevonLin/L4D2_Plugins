@@ -7,7 +7,7 @@
 #include <l4d2util>
 #undef REQUIRE_PLUGIN
 
-#define PLUGIN_VERSION "1.0.9"
+#define PLUGIN_VERSION "1.0.10"
 
 #define TEST_DEBUG 0
 #define TEST_DEBUG_LOG 1
