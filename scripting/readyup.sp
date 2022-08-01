@@ -9,7 +9,7 @@
 #undef REQUIRE_PLUGIN
 #include <caster_system>
 
-#define PLUGIN_VERSION "9.3.9"
+#define PLUGIN_VERSION "9.4.0"
 
 public Plugin myinfo =
 {
@@ -44,8 +44,8 @@ public Plugin myinfo =
 #define GAMEDATA_READYUP "l4d2_cdirector"
 #define GAMEDATA_L4DH "left4dhooks.l4d2"
 
-#define READY_MODE_MANUAL 1
-#define READY_MODE_AUTOSTART 2
+// #define READY_MODE_MANUAL true
+#define READY_MODE_AUTOSTART false
 
 #define AFK_DURATION 15.0
 
@@ -62,6 +62,10 @@ enum
 // ========================
 //  Plugin Variables
 // ========================
+// Forwards
+GlobalForward playerReadyForward;
+GlobalForward playerUnreadyForward;
+
 // Game Cvars
 ConVar
 	director_no_specials,
@@ -88,6 +92,7 @@ ConVar ServerNamer;
 
 // Ready Panel
 bool
+	g_cvarReadyEnabled,
 	hiddenPanel[MAXPLAYERS+1];
 char
 	sCmd[32],
@@ -123,8 +128,7 @@ char
 	autoStartSound[PLATFORM_MAX_PATH];
 int
 	autoStartDelay,
-	expireTime,
-	g_CvarReadyEnableChange;
+	expireTime;
 
 // Forwards
 Handle
@@ -191,6 +195,9 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	countdownForward = CreateGlobalForward("OnRoundLiveCountdown", ET_Ignore);
 	preLiveForward = CreateGlobalForward("OnRoundIsLivePre", ET_Ignore);
 	liveForward = CreateGlobalForward("OnRoundIsLive", ET_Ignore);
+	playerReadyForward = new GlobalForward("OnPlayerReady", ET_Event, Param_Cell);
+	playerUnreadyForward = new GlobalForward("OnPlayerUnready", ET_Event, Param_Cell);
+
 	RegPluginLibrary("readyup");
 	return APLRes_Success;
 }
@@ -199,7 +206,7 @@ public void OnPluginStart()
 {
 	LoadSDK(true);
 	
-	l4d_ready_enabled			= CreateConVar("l4d_ready_enabled", "1", "Enable this plugin. (Values: 1 = Manual ready, 2 = Auto start)", FCVAR_NOTIFY, true, 0.0, true, 2.0);
+	l4d_ready_enabled			= CreateConVar("l4d_ready_enabled", "0", "Enable this plugin. (Values: 0 = Manual ready, 1 = Auto start)", FCVAR_NOTIFY);
 	l4d_ready_cfg_name			= CreateConVar("l4d_ready_cfg_name", "", "Configname to display on the ready-up panel", FCVAR_NOTIFY|FCVAR_PRINTABLEONLY);
 	l4d_ready_server_cvar		= CreateConVar("l4d_ready_server_cvar", "sn_main_name", "ConVar to retrieve the server name for displaying on the ready-up panel", FCVAR_NOTIFY|FCVAR_PRINTABLEONLY);
 	l4d_ready_disable_spawns	= CreateConVar("l4d_ready_disable_spawns", "0", "Prevent SI from having spawns during ready-up", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -207,7 +214,7 @@ public void OnPluginStart()
 	l4d_ready_max_players		= CreateConVar("l4d_ready_max_players", "12", "Maximum number of players to show on the ready-up panel.", FCVAR_NOTIFY, true, 0.0, true, MAXPLAYERS+1.0);
 	l4d_ready_delay				= CreateConVar("l4d_ready_delay", "3", "Number of seconds to count down before the round goes live.", FCVAR_NOTIFY, true, 0.0);
 	l4d_ready_force_extra		= CreateConVar("l4d_ready_force_extra", "2", "Number of seconds added to the duration of live count down.", FCVAR_NOTIFY, true, 0.0);
-	l4d_ready_autostart_delay	= CreateConVar("l4d_ready_autostart_delay", "5", "Number of seconds to count down before auto-start kicks in.", FCVAR_NOTIFY, true, 0.0);
+	l4d_ready_autostart_delay	= CreateConVar("l4d_ready_autostart_delay", "3", "Number of seconds to count down before auto-start kicks in.", FCVAR_NOTIFY, true, 0.0);
 	l4d_ready_autostart_wait	= CreateConVar("l4d_ready_autostart_wait", "20", "Number of seconds to wait for connecting players before auto-start is forced.", FCVAR_NOTIFY, true, 0.0);
 	l4d_ready_enable_sound		= CreateConVar("l4d_ready_enable_sound", "1", "Enable sound during autostart & countdown & on live", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	l4d_ready_countdown_sound	= CreateConVar("l4d_ready_countdown_sound", DEFAULT_COUNTDOWN_SOUND, "The sound that plays when a round goes on countdown");	
@@ -215,9 +222,10 @@ public void OnPluginStart()
 	l4d_ready_autostart_sound	= CreateConVar("l4d_ready_autostart_sound", DEFAULT_AUTOSTART_SOUND, "The sound that plays when auto-start goes on countdown");
 	l4d_ready_chuckle			= CreateConVar("l4d_ready_chuckle", "0", "Enable random moustachio chuckle during countdown");
 	l4d_ready_secret			= CreateConVar("l4d_ready_secret", "1", "Play something good", _, true, 0.0, true, 1.0);
-	l4d_ready_unbalanced_start	= CreateConVar("l4d_ready_unbalanced_start", "0", "Allow game to go live when teams are not full.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	l4d_ready_unbalanced_start	= CreateConVar("l4d_ready_unbalanced_start", "1", "Allow game to go live when teams are not full.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	l4d_ready_unbalanced_min	= CreateConVar("l4d_ready_unbalanced_min", "2", "Minimum of players in each team to allow a unbalanced start.", FCVAR_NOTIFY, true, 0.0);
 	
+	g_cvarReadyEnabled = GetConVarBool(l4d_ready_enabled);
 	director_no_specials = FindConVar("director_no_specials");
 	god = FindConVar("god");
 	sb_stop = FindConVar("sb_stop");
@@ -256,9 +264,7 @@ public void OnPluginStart()
 	l4d_ready_survivor_freeze.AddChangeHook(SurvFreezeChanged);
 	
 	l4d_ready_server_cvar.AddChangeHook(ServerCvarChanged);
-
-	g_CvarReadyEnableChange = GetConVarInt(l4d_ready_enabled);
-	l4d_ready_enabled.AddChangeHook(CvarReadyEnableChange);
+	l4d_ready_enabled.AddChangeHook(ReadyCvarChanged);
 }
 
 public void OnPluginEnd()
@@ -366,14 +372,13 @@ public void SurvFreezeChanged(ConVar convar, const char[] oldValue, const char[]
 	}
 }
 
+public void ReadyCvarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	g_cvarReadyEnabled = GetConVarBool(l4d_ready_enabled);
+}
 public void ServerCvarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	FillServerNamer();
-}
-
-public void CvarReadyEnableChange(ConVar convar, const char[] oldValue, const char[] newValue)
-{
-	g_CvarReadyEnableChange = GetConVarInt(l4d_ready_enabled);
 }
 
 
@@ -382,14 +387,40 @@ public void CvarReadyEnableChange(ConVar convar, const char[] oldValue, const ch
 //  Events
 // ========================
 
-// public void OnConfigsExecuted()
-// {
-// 	if (g_bTransitioning)
-// 	{
-// 		g_bTransitioning = false;
-// 		InitiateReadyUp();
-// 	}
-// }
+void CallOnPlayerReady(int client)
+{
+    Action result;
+    Call_StartForward(playerReadyForward);
+    Call_PushCell(client);
+    Call_Finish(result);
+}
+
+void CallOnPlayerUnready(int client)
+{
+    Action result;
+    Call_StartForward(playerUnreadyForward);
+    Call_PushCell(client);
+    Call_Finish(result);
+}
+
+public void OnPlayerReady(int client)
+{
+	isPlayerReady[client] = true;
+}
+
+public void OnPlayerUnready(int client)
+{
+	isPlayerReady[client] = false;
+}
+
+public void OnConfigsExecuted()
+{
+	if (g_bTransitioning)
+	{
+		g_bTransitioning = false;
+		InitiateReadyUp();
+	}
+}
 
 public void RoundStart_Event(Event event, const char[] name, bool dontBroadcast)
 {
@@ -409,7 +440,7 @@ public void PlayerTeam_Event(Event event, const char[] name, bool dontBroadcast)
 	if (!client || IsFakeClient(client))
 		return;
 	
-	isPlayerReady[client] = false;
+	CallOnPlayerUnready(client);
 	SetEngineTime(client);
 	
 	if (!inReadyUp) return;
@@ -469,12 +500,6 @@ public Action Timer_PlayerTeam(Handle timer, DataPack dp)
 
 public void OnMapStart()
 {
-	if (g_bTransitioning)
-	{
-		g_bTransitioning = false;
-		InitiateReadyUp();
-	}
-	
 	/* OnMapEnd needs this to work */
 	char szPath[PLATFORM_MAX_PATH];
 	
@@ -535,7 +560,7 @@ public void OnClientPostAdminCheck(int client)
 public void OnClientDisconnect(int client)
 {
 	hiddenPanel[client] = false;
-	isPlayerReady[client] = false;
+	CallOnPlayerUnready(client);
 	g_fButtonTime[client] = 0.0;
 	g_hChangeTeamTimer[client] = null;
 }
@@ -649,7 +674,8 @@ public Action Ready_Cmd(int client, int args)
 {
 	if (inReadyUp && IsPlayer(client))
 	{
-		isPlayerReady[client] = true;
+		CallOnPlayerReady(client);
+
 		if (l4d_ready_secret.BoolValue)
 			DoSecrets(client);
 		if (!inAutoStart && CheckFullReady())
@@ -677,7 +703,7 @@ public Action Unready_Cmd(int client, int args)
 			if (IsPlayer(client))
 			{
 				SetEngineTime(client);
-				isPlayerReady[client] = false;
+				CallOnPlayerUnready(client);
 			}
 			else if (!hasflag)
 			{
@@ -1012,7 +1038,7 @@ void InitiateReadyUp()
 	
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		isPlayerReady[i] = false;
+		CallOnPlayerUnready(i);
 	}
 
 	UpdatePanel();
@@ -1026,7 +1052,7 @@ void InitiateReadyUp()
 	
 	fStartTimestamp = GetGameTime();
 	
-	isAutoStartMode = (g_CvarReadyEnableChange == READY_MODE_AUTOSTART);
+	isAutoStartMode = (!g_cvarReadyEnabled);
 
 	if (l4d_ready_disable_spawns.BoolValue)
 	{

@@ -2,12 +2,14 @@
 #pragma newdecls required
 
 #include <sourcemod>
+#include <sdktools>
 #include <builtinvotes>
 #undef REQUIRE_PLUGIN
 #include <confogl>
 #include <colors>
 #define L4D2UTIL_STOCKS_ONLY 1
 #include <l4d2util>
+#include <left4dhooks>
 
 #define MATCHMODES_PATH		"configs/matchmodes.txt"
 #define TRANSLATION_FILE 	"l4d2_votemenu.phrases"
@@ -62,15 +64,15 @@ char
 
 int
 	// g_map_serial = -1,
-	g_cvarReady,
+	g_cvarAddons,
 	g_iSlots,
 	g_customMapCount,
 	g_nextMapCount;
 
 bool
+	g_cvarReady,
 	g_bDebug,
 	g_bVoteEnable = false,
-	g_cvarAddons,
 	g_cvarGiveHP,
 	g_cvarGivePills,
 	g_cvarChangeSlots,
@@ -106,7 +108,7 @@ public Plugin myinfo =
 	name = "Vote Menu",
 	author = "Kevonlin",
 	description = "Vote Menu.",
-	version = "1.5",
+	version = "1.6",
 	url = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -153,7 +155,7 @@ public void OnPluginStart()
 	sm_votemenu_kick = CreateConVar("sm_votemenu_kick", "0", "Kick Enable");
 	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "0", "Mute Enable");
 	sm_votemenu_toggleaddons = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
-	sm_votemenu_toggleready = CreateConVar("sm_votemenu_toggleready", "0", "Toggle ready Enable");
+	sm_votemenu_toggleready = CreateConVar("sm_votemenu_toggleready", "1", "Toggle ready Enable");
 	sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
 	sm_match_player_limit = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
 	l4d_votemenu_debug = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
@@ -175,10 +177,10 @@ public void OnPluginStart()
 	cvarAddons = FindConVar("l4d2_addons_eclipse");
 	cvarReady = FindConVar("l4d_ready_enabled");
 	
-	g_cvarAddons = GetConVarBool(cvarAddons);
+	g_cvarAddons = GetConVarInt(cvarAddons);
 
 	if (cvarReady != INVALID_HANDLE)
-		g_cvarReady = GetConVarInt(cvarReady);
+		g_cvarReady = GetConVarBool(cvarReady);
 
 	HookConVarChange(sm_votemenu_givehp, CVarChanged);
 	HookConVarChange(sm_votemenu_pills, CVarChanged);	
@@ -247,9 +249,9 @@ public void OnMapEnd()
 
 public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 {
-	g_cvarAddons = GetConVarBool(cvarAddons);
+	g_cvarAddons = GetConVarInt(cvarAddons);
 	if (cvarReady != INVALID_HANDLE)
-		g_cvarReady = GetConVarInt(cvarReady);
+		g_cvarReady = GetConVarBool(cvarReady);
 
 	g_cvarGiveHP = GetConVarBool(sm_votemenu_givehp);
 	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
@@ -267,8 +269,8 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 public Action Command_Votes(int iClient, int iArgs)
 {
 	//Test
-	// CPrintToChat(iClient,"l4d2_addons_eclipse = %i", g_cvarAddons);
-	// CPrintToChat(iClient,"l4d_ready_enabled = %i", g_cvarReady);
+	// CPrintToChat(iClient,"l4d2_addons_eclipse = %i", GetConVarInt(cvarAddons));
+	// CPrintToChat(iClient,"l4d_ready_enabled = %b", g_cvarReady);
 
 	if(iClient == 0 || !sm_votemenu_enable.BoolValue)
 	{
@@ -342,7 +344,7 @@ void BuildVoteMenu(int iClient)
 		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons" ,iClient);
 		vMenu.AddItem("toggleaddons", sBuffer);
 	}
-	if (g_cvarToggleReady)
+	if (g_cvarToggleReady && strcmp(g_sCfg, "zonemodremix") == 0)
 	{
 		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready" ,iClient);
 		vMenu.AddItem("toggleready", sBuffer);
@@ -489,7 +491,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			}
 			else if (strcmp(item, "toggleready") == 0)
 			{
-				if (!g_cvarToggleReady)
+				if (!g_cvarToggleReady || !(strcmp(g_sCfg, "zonemodremix") == 0))
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -845,7 +847,7 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 
 		if(strcmp(item, "enablemod") == 0)
 		{
-			if (g_cvarAddons)
+			if (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()))
 			{
 				CPrintToChat(param1, "Addons is already Enable");
 				AddonsMenu(param1);
@@ -866,7 +868,7 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 		}
 		else if(strcmp(item, "disablemod") == 0)
 		{
-			if (!g_cvarAddons)
+			if (g_cvarAddons == 0 || (g_cvarAddons == -1 && !IsDefaultEnableMod()))
 			{
 				CPrintToChat(param1, "Addons is already Disable");
 				AddonsMenu(param1);
@@ -920,7 +922,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 
 		if(strcmp(item, "enableready") == 0)
 		{
-			if (g_cvarReady == 1)
+			if (g_cvarReady)
 			{
 				CPrintToChat(param1, "Ready plugin was already enabled");
 				ReadyMenu(param1);
@@ -941,7 +943,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		}
 		else if(strcmp(item, "disableready") == 0)
 		{
-			if (g_cvarReady == 2)
+			if (!g_cvarReady)
 			{
 				CPrintToChat(param1, "Ready plugin was already disabled");
 				ReadyMenu(param1);
@@ -1142,22 +1144,22 @@ bool StartVote(int iClient)
 		}
 		else if (g_voteType == view_as<voteType>(addons))
 		{
-			if(g_cvarAddons)
+			if(g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()))
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable addons", iClient);
 			}
-			else if(!g_cvarAddons)
+			else if(g_cvarAddons == 0 || (g_cvarAddons == -1 && !IsDefaultEnableMod()))
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable addons", iClient);
 			}
 		}
 		else if (g_voteType == view_as<voteType>(ready))
 		{
-			if(g_cvarReady == 2)
+			if(g_cvarReady)
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable ready", iClient);
 			}
-			else if(g_cvarReady == 1)
+			else if(!g_cvarReady)
 			{
 				FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable ready", iClient);
 			}
@@ -1337,12 +1339,12 @@ void ChangeCustomMap()
 
 void ToggleAddons()
 {
-	if (g_cvarAddons)
+	if (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()))
 	{
 		SetConVarBool(cvarAddons, false);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Addons {default}has toggle to {blue}disalbe");
 	}
-	else if (!g_cvarAddons)
+	else if (g_cvarAddons == 0 || (g_cvarAddons == -1 && !IsDefaultEnableMod()))
 	{
 		SetConVarBool(cvarAddons, true);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Addons {default}has toggle to {blue}enable");
@@ -1354,12 +1356,12 @@ void ToggleAddons()
 
 void ToggleReady()
 {
-	if (g_cvarReady == 1)
+	if (g_cvarReady)
 	{
 		SetConVarInt(cvarReady, 1);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has toggle to {blue}disalbe");
 	}
-	else if (g_cvarReady == 2)
+	else if (!g_cvarReady)
 	{
 		SetConVarInt(cvarReady, 2);
 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has toggle to {blue}enalbe");
@@ -1403,4 +1405,19 @@ bool HasPills(int iClient)
 		return StrEqual(buffer, "weapon_pain_pills");
 	}
 	return false;
+}
+
+bool IsDefaultEnableMod()
+{
+	static ConVar mp_gamemode;
+	
+	if (mp_gamemode == null)
+	{
+		mp_gamemode = FindConVar("mp_gamemode");
+	}
+	
+	char sGamemode[16];
+	mp_gamemode.GetString(sGamemode, sizeof(sGamemode));
+	
+	return strcmp(sGamemode, "coop") == 0;
 }
