@@ -10,6 +10,7 @@
 #define L4D2UTIL_STOCKS_ONLY 1
 #include <l4d2util>
 #include <left4dhooks>
+#include <basecomm>
 
 #define MATCHMODES_PATH		"configs/matchmodes.txt"
 #define TRANSLATION_FILE 	"l4d2_votemenu.phrases"
@@ -67,7 +68,8 @@ int
 	g_cvarAddons,
 	g_iSlots,
 	g_customMapCount,
-	g_nextMapCount;
+	g_nextMapCount,
+	g_selectClient;
 
 bool
 	g_cvarReady,
@@ -151,14 +153,18 @@ public void OnPluginStart()
 	sm_votemenu_changeslots = CreateConVar("sm_votemenu_changeslots", "1", "Change slots Enable");
 	sm_votemenu_nextmap = CreateConVar("sm_votemenu_nextmap", "1", "Change next map Enable");
 	sm_votemenu_changethirdmaps = CreateConVar("sm_votemenu_changethirdmaps", "1", "Change custom maps Enable");
-	sm_votemenu_ban = CreateConVar("sm_votemenu_ban", "0", "Ban Enable");
-	sm_votemenu_kick = CreateConVar("sm_votemenu_kick", "0", "Kick Enable");
-	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "0", "Mute Enable");
+	sm_votemenu_ban = CreateConVar("sm_votemenu_ban", "1", "Ban Enable");
+	sm_votemenu_kick = CreateConVar("sm_votemenu_kick", "1", "Kick Enable");
+	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "1", "Mute Enable");
 	sm_votemenu_toggleaddons = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
 	sm_votemenu_toggleready = CreateConVar("sm_votemenu_toggleready", "1", "Toggle ready Enable");
 	sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
 	sm_match_player_limit = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
 	l4d_votemenu_debug = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
+
+	cvarMvMaxPlayers = FindConVar("sv_maxplayers");
+	cvarAddons = FindConVar("l4d2_addons_eclipse");
+	cvarReady = FindConVar("l4d_ready_enabled");
 
 	g_cvarGiveHP = GetConVarBool(sm_votemenu_givehp);
 	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
@@ -172,11 +178,6 @@ public void OnPluginStart()
 	g_cvarToggleReady = GetConVarBool(sm_votemenu_toggleready);
 	g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
 	g_bDebug = GetConVarBool(l4d_votemenu_debug);
-
-	cvarMvMaxPlayers = FindConVar("sv_maxplayers");
-	cvarAddons = FindConVar("l4d2_addons_eclipse");
-	cvarReady = FindConVar("l4d_ready_enabled");
-	
 	g_cvarAddons = GetConVarInt(cvarAddons);
 
 	if (cvarReady != INVALID_HANDLE)
@@ -344,7 +345,7 @@ void BuildVoteMenu(int iClient)
 		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons" ,iClient);
 		vMenu.AddItem("toggleaddons", sBuffer);
 	}
-	if (g_cvarToggleReady && strcmp(g_sCfg, "zonemodremix") == 0)
+	if (g_cvarToggleReady)
 	{
 		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready" ,iClient);
 		vMenu.AddItem("toggleready", sBuffer);
@@ -383,7 +384,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 				g_voteType = view_as<voteType>(hp);
 				if (StartVote(param1))
 				{
-					LogMessage("Start a give hp vote.");
+					LogMessage("Player %N start a give hp vote.", param1);
 					//caller is voting for
 					FakeClientCommand(param1, "Vote Yes");
 				} 
@@ -405,7 +406,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 				g_voteType = view_as<voteType>(pills);
 				if (StartVote(param1))
 				{
-					LogMessage("Start a give pills vote.");
+					LogMessage("Player %N start a give pills vote.", param1);
 					//caller is voting for
 					FakeClientCommand(param1, "Vote Yes");
 				} 
@@ -456,7 +457,9 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 					BuildVoteMenu(param1);
 					return 0;
 				}
-				// FakeClientCommand(param1, "sm_voteban");
+				
+				g_voteType = view_as<voteType>(ban);
+				SelectPlayerMenu(param1);
 			}
 			else if (strcmp(item, "kickplayers") == 0)
 			{
@@ -466,7 +469,9 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 					BuildVoteMenu(param1);
 					return 0;
 				}
-				// FakeClientCommand(param1, "sm_votekick");
+				
+				g_voteType = view_as<voteType>(kick);
+				SelectPlayerMenu(param1);
 			}
 			else if (strcmp(item, "muteplayers") == 0)
 			{
@@ -476,7 +481,9 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 					BuildVoteMenu(param1);
 					return 0;
 				}
-				// FakeClientCommand(param1, "sm_mute");
+				
+				g_voteType = view_as<voteType>(mute);
+				SelectPlayerMenu(param1);
 			}
 			else if (strcmp(item, "toggleaddons") == 0)
 			{
@@ -491,7 +498,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			}
 			else if (strcmp(item, "toggleready") == 0)
 			{
-				if (!g_cvarToggleReady || !(strcmp(g_sCfg, "zonemodremix") == 0))
+				if (!g_cvarToggleReady)
 				{
 					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
 					BuildVoteMenu(param1);
@@ -591,7 +598,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Start a Slots 8 vote.");
+				LogMessage("Player %N start a Slots 8 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -605,7 +612,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Start a Slots 10 vote.");
+				LogMessage("Player %N start a Slots 10 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -619,7 +626,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Start a Slots 12 vote.");
+				LogMessage("Player %N start a Slots 12 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -633,7 +640,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Start a Slots 14 vote.");
+				LogMessage("Player %N start a Slots 14 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -647,7 +654,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Start a Slots 16 vote.");
+				LogMessage("Player %N start a Slots 16 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -692,7 +699,7 @@ public int NextMapMenuHandler(Menu menu, MenuAction action, int param1, int para
 
 		if(StartVote(param1))
 		{
-			LogMessage("%N starts a vote: change map %s", param1, g_sVoteNextMapName);
+			LogMessage("Player %N starts a vote: change map %s", param1, g_sVoteNextMapName);
 			//caller is voting for
 			FakeClientCommand(param1, "Vote Yes");
 		}
@@ -769,7 +776,7 @@ public int ThirdMapMenuHandler(Menu menu, MenuAction action, int param1, int par
 
 		if(StartVote(param1))
 		{
-			LogMessage("%N starts a vote: change map %s", param1, g_sVoteCustomMapName);
+			LogMessage("Player %N starts a vote: change map %s", param1, g_sVoteCustomMapName);
 			//caller is voting for
 			FakeClientCommand(param1, "Vote Yes");
 		}
@@ -816,6 +823,151 @@ void ParseCustomCampaigns()
 	}
 }
 
+void SelectPlayerMenu(int iClient)
+{
+	char sBuffer[64],sClientID[64];
+	Menu vMenu = new Menu(SelectPlayerMenuHandler);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select pleyer menu" ,iClient);
+	vMenu.SetTitle(sBuffer);
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && !IsFakeClient(i) && iClient != i)
+		{
+			FormatEx(sClientID, sizeof(sClientID), "%i" , GetClientUserId(i));
+			FormatEx(sBuffer, sizeof(sBuffer), "%N" ,i);
+			vMenu.AddItem(sClientID, sBuffer);
+		}
+	}
+
+	vMenu.ExitBackButton = true;
+	vMenu.ExitButton = true;
+	vMenu.Display(iClient, 30);
+}
+
+
+public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	if (action == MenuAction_End) {
+		delete menu;
+	} else if (action == MenuAction_Cancel){
+		BuildVoteMenu(param1);
+	} else if (action == MenuAction_Select) {
+		char item[32];
+		menu.GetItem(param2, item, sizeof(item));
+		int target = GetClientOfUserId(StringToInt(item));
+		
+		AdminId clientAdmin = GetUserAdmin(param1);
+		AdminId targetAdmin = GetUserAdmin(target);
+		
+		if (!CanAdminTarget(clientAdmin, targetAdmin))
+		{
+			switch (g_voteType)
+			{
+				case (view_as<voteType>(ban)):
+				{
+					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not ban Admins.", param2);
+					CPrintToChat(param2, "{blue}[{default}!{blue}] {default}You were banned by {blue}%N", param1);
+				}
+
+				case (view_as<voteType>(kick)):
+				{
+					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not kick Admins.", param2);
+					CPrintToChat(param2, "{blue}[{default}!{blue}] {default}You were voted out by {blue}%N", param1);
+				}
+
+				case (view_as<voteType>(mute)):
+				{
+					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not mute Admins.", param2);
+					CPrintToChat(param2, "{blue}[{default}!{blue}] {default}You were muted by {blue}%N", param1);
+				}
+			}
+			SelectPlayerMenu(param1);
+			return 0;
+		}
+		
+		g_selectClient = target;
+
+		if (g_voteType == view_as<voteType>(ban))
+		{
+			if (!g_cvarBan)
+			{
+				g_voteType = view_as<voteType>(None);
+				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ban Player was disabled.");
+				BuildVoteMenu(param1);
+				return 0;
+			}
+
+			if (StartVote(param1))
+			{
+				LogMessage("Player %N start a ban player vote.", param1);
+				//caller is voting for
+				FakeClientCommand(param1, "Vote Yes");
+				FakeClientCommand(target, "Vote No");
+			} 
+			else
+			{
+				g_voteType = view_as<voteType>(None);
+				BuildVoteMenu(param1);
+			}
+		}
+		else if (g_voteType == view_as<voteType>(kick))
+		{
+			if (!g_cvarKick)
+			{
+				g_voteType = view_as<voteType>(None);
+				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Kick Player was disabled.");
+				BuildVoteMenu(param1);
+				return 0;
+			}
+
+			if (StartVote(param1))
+			{
+				LogMessage("Player %N start a kick player vote.", param1);
+				//caller is voting for
+				FakeClientCommand(param1, "Vote Yes");
+				FakeClientCommand(target, "Vote No");
+			} 
+			else
+			{
+				g_voteType = view_as<voteType>(None);
+				BuildVoteMenu(param1);
+			}
+		}
+		else if (g_voteType == view_as<voteType>(mute))
+		{
+			if (!g_cvarMute)
+			{
+				g_voteType = view_as<voteType>(None);
+				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Mute Player was disabled.");
+				BuildVoteMenu(param1);
+				return 0;
+			}
+
+			if (BaseComm_IsClientMuted(target))
+			{
+				g_voteType = view_as<voteType>(None);
+				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Player has been muted.");
+				return 0;
+			}
+
+			if (StartVote(param1))
+			{
+				LogMessage("Player %N start a mute player vote.", param1);
+				//caller is voting for
+				FakeClientCommand(param1, "Vote Yes");
+				FakeClientCommand(target, "Vote No");
+			} 
+			else
+			{
+				g_voteType = view_as<voteType>(None);
+				BuildVoteMenu(param1);
+			}
+		}
+	}
+	return 0;
+}
+
 void AddonsMenu(int iClient)
 {
 	char sBuffer[64];
@@ -849,14 +1001,14 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 		{
 			if (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()))
 			{
-				CPrintToChat(param1, "Addons is already Enable");
+				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already Enable");
 				AddonsMenu(param1);
 				return 0;
 			}
 
 			if (StartVote(param1))
 			{
-				LogMessage("Start a enbale addons vote.");
+				LogMessage("Player %N start a enbale addons vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -870,14 +1022,14 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 		{
 			if (g_cvarAddons == 0 || (g_cvarAddons == -1 && !IsDefaultEnableMod()))
 			{
-				CPrintToChat(param1, "Addons is already Disable");
+				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already Disable");
 				AddonsMenu(param1);
 				return 0;
 			}
 
 			if (StartVote(param1))
 			{
-				LogMessage("Start a disable addons vote.");
+				LogMessage("Player %N start a disable addons vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -924,14 +1076,14 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (g_cvarReady)
 			{
-				CPrintToChat(param1, "Ready plugin was already enabled");
+				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin was already enabled");
 				ReadyMenu(param1);
 				return 0;
 			}
 
 			if (StartVote(param1))
 			{
-				LogMessage("Start a enbale ready plugin vote.");
+				LogMessage("Player %N start a enbale ready plugin vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -945,14 +1097,14 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (!g_cvarReady)
 			{
-				CPrintToChat(param1, "Ready plugin was already disabled");
+				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin was already disabled");
 				ReadyMenu(param1);
 				return 0;
 			}
 
 			if (StartVote(param1))
 			{
-				LogMessage("Start a disable ready plugin vote.");
+				LogMessage("Player %N start a disable ready plugin vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -1036,7 +1188,7 @@ public int ConfigsMenuHandler(Menu menu, MenuAction action, int param1, int para
 		if (StartMatchVote(param1, sBuffer)) {
 			strcopy(g_sCfg, sizeof(g_sCfg), sInfo);
 			g_voteType = view_as<voteType>(config);
-			LogMessage("Start a config vote.");
+			LogMessage("Player %N start a config vote.", param1);
 			//caller is voting for
 			FakeClientCommand(param1, "Vote Yes");
 		} else {
@@ -1102,13 +1254,26 @@ bool StartVote(int iClient)
 		int iNumPlayers = 0;
 		int[] iPlayers = new int[MaxClients];
 
-		//list of non-spectators players
-		for (int i = 1; i <= MaxClients; i++) {
-			if (!IsClientInGame(i) || IsFakeClient(i) || GetClientTeam(i) <= L4D2Team_Spectator) {
-				continue;
-			}
+		if (g_voteType == view_as<voteType>(ban) || g_voteType == view_as<voteType>(kick) || g_voteType == view_as<voteType>(mute))
+		{
+			for (int i = 1; i <= MaxClients; i++) {
+				if (!IsClientInGame(i) || IsFakeClient(i)) {
+					continue;
+				}
 
-			iPlayers[iNumPlayers++] = i;
+				iPlayers[iNumPlayers++] = i;
+			}
+		}
+		else
+		{
+			//list of non-spectators players
+			for (int i = 1; i <= MaxClients; i++) {
+				if (!IsClientInGame(i) || IsFakeClient(i) || GetClientTeam(i) <= L4D2Team_Spectator) {
+					continue;
+				}
+
+				iPlayers[iNumPlayers++] = i;
+			}
 		}
 
 		if (iNumPlayers < sm_match_player_limit.IntValue) {
@@ -1141,6 +1306,18 @@ bool StartVote(int iClient)
 		else if (g_voteType == view_as<voteType>(thirdmap))
 		{
 			FormatEx(sBuffer, sizeof(sBuffer), "Change Custom Map: %s", g_sVoteCustomMapName);
+		}
+		else if (g_voteType == view_as<voteType>(ban))
+		{
+			FormatEx(sBuffer, sizeof(sBuffer), "Ban Player %N 30min", g_selectClient);
+		}
+		else if (g_voteType == view_as<voteType>(kick))
+		{
+			FormatEx(sBuffer, sizeof(sBuffer), "Kick Player %N", g_selectClient);
+		}
+		else if (g_voteType == view_as<voteType>(mute))
+		{
+			FormatEx(sBuffer, sizeof(sBuffer), "Mute Player %N 30min", g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(addons))
 		{
@@ -1215,43 +1392,61 @@ public Action ExecVoteRes(Handle timer, any client)
 		case (view_as<voteType>(hp)):
 		{
 			RecoveryHealth();
-			LogMessage("Vote to give hp");	
+			LogMessage("Vote to give hp pass");	
 		}
 
 		case (view_as<voteType>(pills)):
 		{
 			GivePills();
-			LogMessage("Vote to give pills");	
+			LogMessage("Vote to give pills pass");	
 		}
 
 		case (view_as<voteType>(slots)):
 		{
 			ChangeSlots();
-			LogMessage("Vote to change slots");	
+			LogMessage("Vote to change slots pass");	
 		}
 
 		case (view_as<voteType>(nextmap)):
 		{
 			ChangeNextMap();
-			LogMessage("Vote next map");	
+			LogMessage("Vote next map pass");	
 		}
 
 		case (view_as<voteType>(thirdmap)):
 		{
 			ChangeCustomMap();
-			LogMessage("Vote to change custom map");	
+			LogMessage("Vote to change custom map pass");	
+		}
+
+		case (view_as<voteType>(ban)):
+		{
+			BanPlayer();
+			LogMessage("Vote to ban player pass");	
+		}
+
+		case (view_as<voteType>(kick)):
+		{
+			KickPlayer();
+			LogMessage("Vote to kick player pass");	
+		}
+
+		case (view_as<voteType>(mute)):
+		{
+			MutePlayer();
+			LogMessage("Vote to mute player pass");	
 		}
 
 		case (view_as<voteType>(addons)):
 		{
 			ToggleAddons();
-			LogMessage("Vote to toggle addons");	
+			LogMessage("Vote to toggle addons pass");	
 		}
 
 		case (view_as<voteType>(ready)):
 		{
 			ToggleReady();
-			LogMessage("Vote to toggle ready");	
+			LogMessage("Vote to toggle ready pass");	
 		}
 
 		case (view_as<voteType>(config)):
@@ -1335,6 +1530,31 @@ void ChangeCustomMap()
 {
 	CreateTimer(3.0, ChangeCustomMapDelay, _);
 	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Change custom to {blue}%s {default}in {blue}3s", g_sVoteCustomMapName);
+}
+
+void BanPlayer()
+{
+	// BanClient(g_selectClient, 30, BANFLAG_AUTO, "Vote", "You habe been banned for 30 min.", "sm_ban");
+	ServerCommand("sm_ban %i 30 Vote", g_selectClient);
+	CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been banned for 30 min.", g_selectClient);
+	g_selectClient = 0;
+}
+
+void KickPlayer()
+{
+	KickClient(g_selectClient, "You have been vote off.");
+	CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been voted off.", g_selectClient);
+	g_selectClient = 0;
+}
+
+void MutePlayer()
+{
+	// SetClientListeningFlags(target, VOICE_MUTED);
+	// FireOnClientMute(target, true);
+	// BaseComm_SetClientMute(g_selectClient, true);
+	ServerCommand("sm_mute %i 30 Vote", g_selectClient);
+	CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been muted.", g_selectClient);
+	g_selectClient = 0;
 }
 
 void ToggleAddons()
