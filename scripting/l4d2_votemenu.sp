@@ -866,23 +866,23 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
 			{
 				case (view_as<voteType>(ban)):
 				{
-					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not ban Admins.", param2);
-					CPrintToChat(param2, "{blue}[{default}!{blue}] {default}You were banned by {blue}%N", param1);
+					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not ban Admins.", target);
+					CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were banned by {blue}%N", param1);
 				}
 
 				case (view_as<voteType>(kick)):
 				{
-					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not kick Admins.", param2);
-					CPrintToChat(param2, "{blue}[{default}!{blue}] {default}You were voted out by {blue}%N", param1);
+					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not kick Admins.", target);
+					CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were voted out by {blue}%N", param1);
 				}
 
 				case (view_as<voteType>(mute)):
 				{
-					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not mute Admins.", param2);
-					CPrintToChat(param2, "{blue}[{default}!{blue}] {default}You were muted by {blue}%N", param1);
+					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not mute Admins.", target);
+					CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were muted by {blue}%N", param1);
 				}
 			}
-			SelectPlayerMenu(param1);
+			// SelectPlayerMenu(param1);
 			return 0;
 		}
 		
