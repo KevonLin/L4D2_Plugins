@@ -59,7 +59,7 @@ char g_sSIClassNames[SI_MAX_SIZE][] = {
 };
 
 ConVar cvarTransType;
-int g_cvarTransType;
+int g_cvarTransType = 0;
 
 public Plugin myinfo =
 {
@@ -74,7 +74,8 @@ public void OnPluginStart()
 {
 	// Cvar
 	cvarTransType = FindConVar("l4d_tankswap_transtype");
-	g_cvarTransType = GetConVarInt(cvarTransType);
+	if (cvarTransType != INVALID_HANDLE)
+		g_cvarTransType = GetConVarInt(cvarTransType);
 
 	// Events
 	HookEvent("round_start", CleanUp);
@@ -312,7 +313,9 @@ public void cvarChanged(Handle cvar, const char[] oldValue, const char[] newValu
 
 public void TransTypeCvarChanged(Handle cvar, const char[] oldValue, const char[] newValue)
 {
-	g_cvarTransType = GetConVarInt(cvarTransType);
+	if (cvarTransType != INVALID_HANDLE)
+		g_cvarTransType = GetConVarInt(cvarTransType);
+		
 	if (g_cvarTransType == 0) return;
 	
 	if (g_cvarTransType > 0)
