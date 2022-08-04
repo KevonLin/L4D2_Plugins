@@ -20,11 +20,7 @@
 #define MaxHP 100
 #define MAX_CAMPAIGN_LIMIT 64
 
-// Menu
-// 	g_MapList;
-
 Handle
-	// g_map_array = null,
 	g_hVote = null;
 
 KeyValues
@@ -64,7 +60,6 @@ char
 	g_sVoteNextMapCmdIndex[MAX_NAME_LENGTH];
 
 int
-	// g_map_serial = -1,
 	g_cvarAddons,
 	g_iSlots,
 	g_customMapCount,
@@ -110,7 +105,7 @@ public Plugin myinfo =
 	name = "Vote Menu",
 	author = "Kevonlin",
 	description = "Vote Menu.",
-	version = "1.6",
+	version = "2.0",
 	url = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -1534,6 +1529,7 @@ void ChangeCustomMap()
 
 void BanPlayer()
 {
+	if (!IsClientInGame(g_selectClient) || IsFakeClient(g_selectClient)) return;
 	// BanClient(g_selectClient, 30, BANFLAG_AUTO, "Vote", "You habe been banned for 30 min.", "sm_ban");
 	ServerCommand("sm_ban %i 30 Vote", g_selectClient);
 	CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been banned for 30 min.", g_selectClient);
@@ -1542,6 +1538,7 @@ void BanPlayer()
 
 void KickPlayer()
 {
+	if (!IsClientInGame(g_selectClient) || IsFakeClient(g_selectClient)) return;
 	KickClient(g_selectClient, "You have been vote off.");
 	CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been voted off.", g_selectClient);
 	g_selectClient = 0;
@@ -1549,6 +1546,7 @@ void KickPlayer()
 
 void MutePlayer()
 {
+	if (!IsClientInGame(g_selectClient) || IsFakeClient(g_selectClient)) return;
 	// SetClientListeningFlags(target, VOICE_MUTED);
 	// FireOnClientMute(target, true);
 	// BaseComm_SetClientMute(g_selectClient, true);
