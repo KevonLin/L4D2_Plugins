@@ -201,14 +201,14 @@ static char meleeMenu[][][] =
 
 static char medicThrowableMenu[][][] =
 {
-	{"health_100", 		"Health+100", 		"350"},
-	{"defibrillator",	"Defibrillator", 	"250"},
+	{"health_100", 		"Health+100", 		"500"},
+	{"defibrillator",	"Defibrillator", 	"500"},
 	{"first_aid_kit",	"First Aid Kit", 	"250"},
 	{"pain_pills", 		"Pain Pill", 		"100"},
-	{"adrenaline",	 	"Adrenaline", 		"125"},
+	{"adrenaline",	 	"Adrenaline", 		"5000"},
 	{"pipe_bomb", 		"Pipe Bomb", 		"150"},
-	{"molotov", 		"Molotov", 			"200"},
-	{"vomitjar", 		"Vomitjar", 		"225"}
+	{"molotov", 		"Molotov", 			"150"},
+	{"vomitjar", 		"Vomitjar", 		"500"}
 };
 
 static char otherMenu[][][] =
@@ -230,18 +230,18 @@ static char otherMenu[][][] =
 static char survivorSpecialMenu[][][] =
 {
 	{"Fire", 			"Fire Yourself", 				"200"},
-	{"Fire_Infeceted", 	"All Infected Gets On Fire", 	"500"},
-	{"Teleport", 		"Teleport to teammate", 		"750"},
+	{"Fire_Infeceted", 	"All Infected Gets On Fire", 	"1500"},
+	{"Teleport", 		"Teleport to teammate", 		"10000"},
 	{"Infinite_Ammo",	"Infinite Ammo", 				"1000"},
-	{"No_FF", 			"No Friendly Fire", 			"1250"},
+	{"No_FF", 			"No Friendly Fire", 			"1000"},
 	{"Dead_Eyes",		"Dead-Eyes", 					"1500"},
-	{"Kill_Commons", 	"Kill Commons", 				"1750"},
+	{"Kill_Commons", 	"Kill Commons", 				"1000"},
 	{"Heal_Survivors",	"Heal Survivors", 				"2000"},
-	{"Jump+1", 			"Jump+1", 						"2250"},
-	{"Slay_Infected", 	"Slay Infected Attacker", 		"2500"},
-	{"Kill_Witches", 	"Kill Witches", 				"2750"},
-	{"Respawn", 		"Respawn Alive", 				"3000"},
-	{"Freeze_Infected", "Freeze-Infected", 				"3250"},
+	{"Jump+1", 			"Jump+1", 						"10000"},
+	{"Slay_Infected", 	"Slay Infected Attacker", 		"500"},
+	{"Kill_Witches", 	"Kill Witches", 				"5000"},
+	{"Respawn", 		"Respawn Alive", 				"5000"},
+	{"Freeze_Infected", "Freeze-Infected", 				"1000"},
 };
 
 static char infectedSpawnMenu[][][] =
