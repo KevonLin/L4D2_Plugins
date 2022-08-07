@@ -218,7 +218,7 @@ public void OnClientPostAdminCheck(int client)
 
 public void RoundStart_Event(Event hEvent, const char[] eName, bool dontBroadcast)
 {
-	g_sVoteNextMapCmdIndex = "";
+	g_sVoteNextMapCmdIndex = "None";
 }
 
 public void RoundEnd_Event(Event hEvent, const char[] eName, bool dontBroadcast)
