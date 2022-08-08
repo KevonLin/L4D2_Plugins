@@ -4,7 +4,7 @@
 #include <sourcemod>
 #include <dhooks>
 
-#define PLUGIN_VERSION "1.10.6"
+#define PLUGIN_VERSION "1.10.7"
 #define GAMEDATA 		"bots"
 #define CVAR_FLAGS 		FCVAR_NOTIFY
 #define MAX_SLOTS		5
@@ -39,6 +39,8 @@ Address
 ConVar
 	g_hSurvivorLimit,
 	g_hSurvivorLimitSet,
+	g_hHookAfkEnale,
+	g_hAfkSpecTimeDelay,
 	g_hJoinSurvivor,
 	g_hRespawnJoin,
 	g_hSpecCmdLimit,
@@ -58,6 +60,9 @@ int
 	g_iOff_m_restoreCSWeaponID2,
 	g_iOff_m_hHiddenWeapon;
 
+float
+	g_fAfkSpecTimeDelay;
+
 bool
 	g_bRespawnJoin,
 	g_bGiveWeaponType,
@@ -65,7 +70,8 @@ bool
 	g_bInSpawnTime,
 	g_bShouldFixAFK,
 	g_bShouldIgnore,
-	g_bHideNameChange;
+	g_bHideNameChange,
+	g_bHookAfkEnale;
 
 enum struct esWeapon
 {
@@ -282,7 +288,7 @@ static const char
 public Plugin myinfo =
 {
 	name		= "bots(coop)",
-	author		= "DDRKhat, Marcus101RR, Merudo, Lux, Shadowysn, sorallll",
+	author		= "DDRKhat, Marcus101RR, Merudo, Lux, Shadowysn, sorallll, Kevonlin",
 	description	= "coop",
 	version		= PLUGIN_VERSION,
 	url			= "https://forums.alliedmods.net/showthread.php?p=2405322#post2405322"
@@ -298,19 +304,26 @@ public void OnPluginStart()
 	AddCommandListener(CommandListener_SpecNext, "spec_next");
 	HookUserMessage(GetUserMessageId("SayText2"), umSayText2, true);
 
-	g_hSurvivorLimitSet = 	CreateConVar("bots_survivor_limit", 	"4", 		"开局Bot的数量", CVAR_FLAGS, true, 1.0, true, 31.0);
+	g_hSurvivorLimitSet = 	CreateConVar("bots_survivor_limit", 	"1", 		"开局Bot的数量", CVAR_FLAGS, true, 1.0, true, 31.0);
+	g_hHookAfkEnale = 		CreateConVar("bots_afk_del_enable",		"1",		"玩家afk后是否进入旁观", CVAR_FLAGS);
+	g_hAfkSpecTimeDelay =	CreateConVar("bots_del_delay",		 	"30", 		"afk后多少秒进入旁观", CVAR_FLAGS, true, 0.0);
 	g_hJoinSurvivor = 		CreateConVar("bots_join_survivor", 		"3", 		"加入生还者的方法. \n0=插件不进行处理, 1=输入!join手动加入, 2=进服后插件自动加入, 3=手动+自动", CVAR_FLAGS);
 	g_hRespawnJoin = 		CreateConVar("bots_respawn_on_join", 	"1", 		"玩家第一次进服时如果没有存活的Bot可以接管是否复活. \n0=否, 1=是.", CVAR_FLAGS);
-	g_hSpecCmdLimit = 		CreateConVar("bots_spec_cmd_limit", 	"1", 		"当完全旁观玩家达到多少个时禁止使用sm_spec命令.", CVAR_FLAGS);
+	g_hSpecCmdLimit = 		CreateConVar("bots_spec_cmd_limit", 	"0", 		"当完全旁观玩家达到多少个时禁止使用sm_spec命令.", CVAR_FLAGS);
 	g_hSpecNextNotify = 	CreateConVar("bots_spec_next_notify", 	"3", 		"完全旁观玩家点击鼠标左键时, 提示加入生还者的方式 \n0=不提示, 1=聊天栏, 2=屏幕中央, 3=弹出菜单.", CVAR_FLAGS);
-	g_esWeapon[0].cFlags = 	CreateConVar("bots_give_slot0", 		"131071", 	"主武器给什么. \n0=不给, 131071=所有, 7=微冲, 1560=霰弹, 30720=狙击, 31=Tier1, 32736=Tier2, 98304=Tier0.", CVAR_FLAGS);
-	g_esWeapon[1].cFlags = 	CreateConVar("bots_give_slot1", 		"1064", 	"副武器给什么. \n0=不给, 131071=所有.(如果选中了近战且该近战在当前地图上未解锁,则会随机给一把).", CVAR_FLAGS);
+	g_esWeapon[0].cFlags = 	CreateConVar("bots_give_slot0", 		"0", 		"主武器给什么. \n0=不给, 131071=所有, 7=微冲, 1560=霰弹, 30720=狙击, 31=Tier1, 32736=Tier2, 98304=Tier0.", CVAR_FLAGS);
+	g_esWeapon[1].cFlags = 	CreateConVar("bots_give_slot1", 		"0", 		"副武器给什么. \n0=不给, 131071=所有.(如果选中了近战且该近战在当前地图上未解锁,则会随机给一把).", CVAR_FLAGS);
 	g_esWeapon[2].cFlags = 	CreateConVar("bots_give_slot2", 		"0", 		"投掷物给什么. \n0=不给, 7=所有.", CVAR_FLAGS);
 	g_esWeapon[3].cFlags =	CreateConVar("bots_give_slot3", 		"1", 		"医疗品给什么. \n0=不给, 15=所有.", CVAR_FLAGS);
-	g_esWeapon[4].cFlags =	CreateConVar("bots_give_slot4", 		"3", 		"药品给什么. \n0=不给, 3=所有.", CVAR_FLAGS);
+	g_esWeapon[4].cFlags =	CreateConVar("bots_give_slot4", 		"0", 		"药品给什么. \n0=不给, 3=所有.", CVAR_FLAGS);
 	g_hGiveWeaponType = 	CreateConVar("bots_give_type", 			"2", 		"根据什么来给玩家装备. \n0=不给, 1=每个槽位的设置, 2=当前存活生还者的平均装备质量(仅主副武器).", CVAR_FLAGS);
 	g_hGiveWeaponTime = 	CreateConVar("bots_give_time", 			"0", 		"什么时候给玩家装备. \n0=每次出生时, 1=只在本插件创建Bot和复活玩家时.", CVAR_FLAGS);
 	CreateConVar("bots_version", PLUGIN_VERSION, "bots(coop) plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
+
+	g_hHookAfkEnale.AddChangeHook(vConVarChanged_General);
+	g_hAfkSpecTimeDelay.AddChangeHook(vConVarChanged_General);
+	g_bHookAfkEnale = g_hHookAfkEnale.BoolValue;
+	g_fAfkSpecTimeDelay = g_hAfkSpecTimeDelay.FloatValue;
 
 	g_hSurvivorLimit = FindConVar("survivor_limit");
 	g_hSurvivorLimit.Flags &= ~FCVAR_NOTIFY; // 移除ConVar变动提示
@@ -350,6 +363,7 @@ public void OnPluginStart()
 	HookEvent("player_bot_replace", Event_PlayerBotReplace);
 	HookEvent("bot_player_replace", Event_BotPlayerReplace);
 	HookEvent("finale_vehicle_leaving", Event_FinaleVehicleLeaving);
+	HookEvent("player_afk", Event_Player_AFK);
 
 	AutoExecConfig(true, "bots");
 }
@@ -761,6 +775,8 @@ void vGetGeneralCvars()
 	g_bRespawnJoin = g_hRespawnJoin.BoolValue;
 	g_iSpecCmdLimit = g_hSpecCmdLimit.IntValue;
 	g_iSpecNextNotify = g_hSpecNextNotify.IntValue;
+	g_bHookAfkEnale = g_hHookAfkEnale.BoolValue;
+	g_fAfkSpecTimeDelay = g_hAfkSpecTimeDelay.FloatValue;
 }
 
 void vConVarChanged_Weapon(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -1018,6 +1034,42 @@ void Event_FinaleVehicleLeaving(Event event, const char[] name, bool dontBroadca
 			DispatchSpawn(entity);
 		}
 	}
+}
+
+void Event_Player_AFK(Event event, const char[] name, bool dontBroadcast)
+{
+	if (!g_bHookAfkEnale) return;
+
+	int client = GetClientOfUserId(event.GetInt("player"));
+	
+	if (IsFakeClient(client))
+	return;
+
+	if (!IsFakeClient(client) && bIsFirstTime(client))
+		vRecordSteamID(client);
+
+	if (g_iRoundStart) {
+		delete g_hBotsTimer;
+		g_hBotsTimer = CreateTimer(g_fAfkSpecTimeDelay, TimerSpec, client);
+	}
+}
+
+Action TimerSpec(Handle timer,int client)
+{
+	if (!client || !IsClientInGame(client) || IsFakeClient(client))
+		return Plugin_Handled;
+
+	bool bIdle = !!iGetBotOfIdlePlayer(client);
+	if (GetClientTeam(client) == TEAM_SPECTATOR && !bIdle) {
+		// PrintToChat(client, "你当前已在旁观者队伍.");
+		return Plugin_Handled;
+	}
+	
+	if (bIdle)
+		SDKCall(g_hSDK_CTerrorPlayer_TakeOverBot, client, true);
+
+	ChangeClientTeam(client, TEAM_SPECTATOR);
+	return Plugin_Handled;
 }
 
 bool bIsFirstTime(int client)
