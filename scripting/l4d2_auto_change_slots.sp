@@ -15,6 +15,7 @@ public Plugin myinfo =
 ConVar
     sm_change_slots_enable,
     sm_slots_limits_change,
+    sm_slots_admin_in_game,
 	cvarMvMaxPlayers;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -33,8 +34,9 @@ public void OnPluginStart()
 {
     LoadTranslations("common.phrases");
 
-    sm_change_slots_enable = CreateConVar("sm_change_slots_enable", "1", "Plugin Enable", 0, true, 0.0, true, 1.0);
-    sm_slots_limits_change = CreateConVar("sm_slots_limits_change", "2", "Set Slots limit more than MaxSlots", 0, true, 0.0);
+    sm_change_slots_enable = CreateConVar("sm_change_slots_enable", "1", "Plugin enable", 0, true, 0.0, true, 1.0);
+    sm_slots_limits_change = CreateConVar("sm_slots_limits_change", "2", "Set lots limit more than MaxSlots", 0, true, 0.0);
+    sm_slots_admin_in_game = CreateConVar("sm_slots_limits_change", "0", "Enable auto change slots when an admin in game.", 0, true, 0.0, true, 1.0);
     
     cvarMvMaxPlayers = FindConVar("sv_maxplayers");
     
@@ -44,6 +46,8 @@ public void OnPluginStart()
 public void OnClientPostAdminCheck(int client)
 {
     if (!sm_change_slots_enable.BoolValue) { return; }
+
+    if (!sm_slots_admin_in_game.BoolValue) { return; }
 
     if (IsFakeClient(client)) { return; }
 
