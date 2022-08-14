@@ -1172,8 +1172,11 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				// {
 				// 	return;
 				// }
-
-				g_iCredits[attacker] -= damageDone * g_iPunishPoint;
+				int punishPoint = damageDone * g_iPunishPoint;
+				g_iCredits[attacker] -= punishPoint;
+				if(g_iCredits[attacker] > 0) 
+					// CPrintToChat(attacker, "%T", "FF Punish", damageDone * g_iPunishPoint, attacker);
+					CPrintToChat(attacker, "[{olive}TS{default}] You are deducted $%d", punishPoint);
 				if(g_iCredits[attacker] < 0) 
 				{
 					g_iCredits[attacker] = 0;
