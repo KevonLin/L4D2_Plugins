@@ -270,7 +270,7 @@
 		"en"	"You get {1} credits by healing teammate. (type !buy to purchase)"
 		"pt"	"Você ganhou {1} créditos por curar um amigo. (Digite !buy para comprar itens)"
 		"zho"	"惡靈發大財! 治療隊友 獲得 {1} 元. (輸入 !buy 購物商品)"
-		"chi"	"治疗队友 获得 {1} 元. (输入 !buy 购物商品)"
+		"chi"	"治疗队友 获得 {1} 元."
 		"es"	"Obtienes {1} puntos curando a un compañero de equipo. (Escribe !buy para comprar)"
 		"ru"	"+{green}{1} {default}кредитов за лечение напарника."
 	}
@@ -280,7 +280,7 @@
 		"en"	"You get {1} credits by reviving teammate. (type !buy to purchase)"
 		"pt"	"Você ganhou {1} créditos por reviver um amigo. (Digite !buy para comprar itens)"
 		"zho"	"不惜粉身碎骨! 拯救隊友復活 獲得 {1} 元. (輸入 !buy 購物商品)"
-		"chi"	"拯救队友复活 获得 {1} 元. (输入 !buy 购物商品)"
+		"chi"	"拯救队友复活 获得 {1} 元."
 		"es"	"Obtienes {1} puntos reviviendo compañero. (Escribe !buy para comprar)"
 		"ru"	"+{green}{1} {default}кредитов за оживление."
 	}
@@ -290,7 +290,7 @@
 		"en"	"You get {1} credits by helping teammate. (type !buy to purchase)"
 		"pt"	"Você ganhou {1} créditos por ajudar um amigo. (Digite !buy para comprar itens)"
 		"zho"	"惡靈發大財! 拉起隊友復活 獲得 {1} 元. (輸入 !buy 購物商品)"
-		"chi"	"拉起队友复活 获得 {1} 元. (输入 !buy 购物商品)"
+		"chi"	"拉起队友复活 获得 {1} 元."
 		"es"	"Obtienes {1} puntos ayudando a su compañero de equipo. (Escribe !buy para comprar)"
 		"ru"	"+{green}{1} {default}кредитов за помощь."
 	}
@@ -320,7 +320,7 @@
 		"en"	"You get {1} credits by killing witch. (type !buy to purchase)"
 		"pt"	"Você ganhou {1} créditos por matar uma Bruxa. (Digite !buy para comprar itens)"
 		"zho"	"惡靈發大財! 殺死 Witch 獲得 {1} 元. (輸入 !buy 購物商品)"
-		"chi"	"杀死 Witch 获得 {1} 元. (输入 !buy 购物商品)"
+		"chi"	"杀死 Witch 获得 {1} 元."
 		"es"	"Obtienes {1} puntos por matar a la bruja. (Escribe !buy para comprar)"
 		"ru"	"+{green}{1} {default}кредитов за убийство ведьмы"
 	}
@@ -330,7 +330,7 @@
 		"en"	"You get {1} credits by killing infected. (type !buy to purchase)"
 		"pt"	"Você ganhou {1} créditos por matar um infectado. (Digite !buy para comprar itens)"
 		"zho"	"惡靈發大財! 殺死特感獲得 {1} 元. (輸入 !buy 購物商品)"
-		"chi"	"杀死特感获得 {1} 元. (输入 !buy 购物商品)"
+		"chi"	"杀死特感获得 {1} 元."
 		"es"	"Obtienes {1} puntos matando infectados. (Escribe !buy para comprar)"
 		"ru"	"+{green}{1} {default}кредитов за убийство босса."
 	}
@@ -413,8 +413,8 @@
 		"#format"		"{1:s},{2:t}"
 		"en"	"{olive}{1}{default} purchased {green}{2}{default}. (Use !buy)."
 		"pt"	"{olive}{1}{default} Você comprou {green}{2}{default}. (Use !buy)."
-		"zho"	"{olive}{1}{default} 使用!buy商店購買了 {green}{2}{default}"
-		"chi"	"{olive}{1}{default} 使用!buy商店购买了 {green}{2}{default}"
+		"zho"	"{olive}{1}{default} 購買了 {green}{2}{default}"
+		"chi"	"{olive}{1}{default} 购买了 {green}{2}{default}"
 		"es"	"{olive}{1}{default} comprado {green}{2}{default}. (Escriba !buy)."
 		"ru"	"{olive}{1} {default}купил {green}{2}{default}."
 	}
@@ -423,8 +423,8 @@
 		"#format"		"{1:s},{2:t}"
 		"en"	"{olive}{1}{default} purchased special item: {green}{2}{default}. (Use !buy)."
 		"pt"	"{olive}{1}{default} Você comprou um item Especial: {green}{2}{default}. (Digite !buy)."
-		"zho"	"{olive}{1}{default} 使用!buy購買了特殊商品: {green}{2}{default}"
-		"chi"	"{olive}{1}{default} 使用!buy购买了特殊商品: {green}{2}{default}"
+		"zho"	"{olive}{1}{default} 購買了特殊商品: {green}{2}{default}"
+		"chi"	"{olive}{1}{default} 购买了特殊商品: {green}{2}{default}"
 		"es"	"{olive}{1}{default} artículo especial comprado: {green}{2}{default}. (Escriba !buy)."
 		"ru"	"{olive}{1} {default}купил спецпредмет: {green}{2}{default}."
 	}
