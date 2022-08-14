@@ -405,7 +405,7 @@ public void OnPluginStart()
 	//*****************//
 	//  ConVar //
 	//****************//
-	g_PlayerRequired = CreateConVar("sm_shop_player_require", "4", "Numbers of real survivor and infected player require to active this plugin.", FCVAR_NOTIFY, true, 1.0);
+	g_PlayerRequired = CreateConVar("sm_shop_player_require", "1", "Numbers of real survivor and infected player require to active this plugin.", FCVAR_NOTIFY, true, 1.0);
 	g_hCookiesCachedEnable = CreateConVar("sm_shop_CookiesCached_enable", "1", "If 1, use CookiesCached to save player money. Otherwise, the moeny will not be saved if player leaves the server.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_BoomerKilled = CreateConVar("sm_shop_boomkilled", "10", "Giving money for killing a boomer", FCVAR_NOTIFY, true, 1.0);
 	g_ChargerKilled = CreateConVar("sm_shop_chargerkilled", "30", "Giving money for killing a charger", FCVAR_NOTIFY, true, 1.0);
@@ -413,21 +413,21 @@ public void OnPluginStart()
 	g_HunterKilled = CreateConVar("sm_shop_hunterkilled", "20", "Giving money for killing a hunter", FCVAR_NOTIFY, true, 1.0);
 	g_JockeyKilled = CreateConVar("sm_shop_jockeykilled", "25", "Giving money for killing a jockey", FCVAR_NOTIFY, true, 1.0);
 	g_SpitterKilled = CreateConVar("sm_shop_spitterkilled", "10", "Giving money for killing a spitter", FCVAR_NOTIFY, true, 1.0);
-	g_hTankHurt = CreateConVar("sm_shop_tank_hurt", "40", "Giving one dollar money for hurting tank per X hp", FCVAR_NOTIFY, true, 1.0);
-	g_WitchKilled = CreateConVar("sm_shop_witchkilled", "80", "Giving money for killing a witch", FCVAR_NOTIFY, true, 1.0);
+	g_hTankHurt = CreateConVar("sm_shop_tank_hurt", "10", "Giving one dollar money for hurting tank per X hp", FCVAR_NOTIFY, true, 1.0);
+	g_WitchKilled = CreateConVar("sm_shop_witchkilled", "500", "Giving money for killing a witch", FCVAR_NOTIFY, true, 1.0);
 	g_ZombieKilled = CreateConVar("sm_shop_zombiekilled", "1", "Giving money for killing a zombie", FCVAR_NOTIFY, true, 1.0);
-	g_hHealTeammate = CreateConVar("sm_shop_heal_teammate", "100", "Giving money for healing people with kit", FCVAR_NOTIFY, true, 1.0);
-	g_hDefiSave = CreateConVar("sm_shop_defi_save", "200", "Giving money for saving people with defibrillator", FCVAR_NOTIFY, true, 1.0);
+	g_hHealTeammate = CreateConVar("sm_shop_heal_teammate", "50", "Giving money for healing people with kit", FCVAR_NOTIFY, true, 1.0);
+	g_hDefiSave = CreateConVar("sm_shop_defi_save", "100", "Giving money for saving people with defibrillator", FCVAR_NOTIFY, true, 1.0);
 	g_hHelpTeammate = CreateConVar("sm_shop_help_teammate_save", "30", "Giving money for saving incapacitated people. (No Hanging from legde)", FCVAR_NOTIFY, true, 1.0);
 	g_hIncapSurvivor = CreateConVar("sm_shop_infected_survivor_incap", "30", "Giving money for incapacitating a survivor. (No Hanging from legde)", FCVAR_NOTIFY, true, 1.0);
 	g_hKillSurvivor = CreateConVar("sm_shop_infected_survivor_killed", "100", "Giving money for killing a survivor.", FCVAR_NOTIFY, true, 1.0);
 	g_hTKSurvivorEnable = CreateConVar("sm_shop_survivor_TK_enable", "1", "If 1, decrease money if survivor friendly fire each other. (1 hp = 1 dollar)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_hPunishPoint = CreateConVar("sm_shop_survivor_TK_enable", "100", "Decrease money if survivor friendly fire each other. (1 hp = x dollar)", FCVAR_NOTIFY, true, 0.0);
+	g_hPunishPoint = CreateConVar("sm_shop_survivor_punish", "100", "Decrease money if survivor friendly fire each other. (1 hp = x dollar)", FCVAR_NOTIFY, true, 0.0);
 	g_hGascanMapOff = CreateConVar("sm_shop_gascan_map_off",	"c1m4_atrium,c6m3_port,c14m2_lighthouse",	"Can not buy gas can in these maps, separate by commas (no spaces). (0=All maps, Empty = none).", FCVAR_NOTIFY );
 	g_hColaMapOff =	CreateConVar("sm_shop_cola_map_off",	"c1m2_streets",	"Can not buy cola in these maps, separate by commas (no spaces). (0=All maps, Empty = none).", FCVAR_NOTIFY );
 	g_hMaxJumpLimit  =	CreateConVar("sm_shop_special_max_jump_limit",	"3",	"Max Air Jump Limit for survivor special item.", FCVAR_NOTIFY, true, 1.0);
 	g_hInfiniteAmmoTime  =	CreateConVar("sm_shop_special_infinite_ammo_time",	"15",	"How long could infinite ammo state last for survivor special item.", FCVAR_NOTIFY, true, 1.0);
-	g_hStageComplete =	CreateConVar("sm_shop_stage_complete", "400",	"Giving money to each alive survivor for mission accomplished award (non-final).", FCVAR_NOTIFY, true, 1.0);
+	g_hStageComplete =	CreateConVar("sm_shop_stage_complete", "500",	"Giving money to each alive survivor for mission accomplished award (non-final).", FCVAR_NOTIFY, true, 1.0);
 	g_hFinalMissionComplete =	CreateConVar("sm_shop_final_mission_complete", "1000",	"Giving money to each alive survivor for mission accomplished award (final).", FCVAR_NOTIFY, true, 1.0);
 	g_hWipeOutSurvivor =	CreateConVar("sm_shop_final_mission_lost", "300",	"Giving money to each infected player for wiping out survivors.", FCVAR_NOTIFY, true, 1.0);
 	g_hDeadEyeTime  =	CreateConVar("sm_shop_special_dead_eyes_time",	"60",	"How long could Dead-Eyes state last for survivor special item.", FCVAR_NOTIFY, true, 1.0);
@@ -1177,6 +1177,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				if(g_iCredits[attacker] < 0) 
 				{
 					g_iCredits[attacker] = 0;
+					if (!IsAliveSurvivor(attacker)) return;
 					ForcePlayerSuicide(attacker);
 					CPrintToChat(attacker, "[{olive}TS{default}] You died because you had no money");
 				}
