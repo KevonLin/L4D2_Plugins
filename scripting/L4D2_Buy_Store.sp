@@ -39,7 +39,7 @@ public Plugin myinfo =
 ConVar g_BoomerKilled,g_ChargerKilled,g_SmokerKilled,g_HunterKilled,g_JockeyKilled,g_SpitterKilled,
 	g_WitchKilled,g_ZombieKilled, g_DecayDecay, g_SpawnRange, g_MaxIncapCount, g_PlayerRequired,
 	g_hHealTeammate, g_hDefiSave, g_hHelpTeammate, g_hTankHurt,  g_hIncapSurvivor, g_hKillSurvivor,
-	g_hCookiesCachedEnable, g_hTKSurvivorEnable, g_hPunishPoint, g_hGascanMapOff, g_hColaMapOff, g_hMaxJumpLimit,
+	g_hCookiesCachedEnable, g_hTKSurvivorEnable, g_hPunishPoint, g_hAdminPunishImmunity, g_hGascanMapOff, g_hColaMapOff, g_hMaxJumpLimit,
 	g_hInfiniteAmmoTime, g_hStageComplete, g_hFinalMissionComplete, g_hWipeOutSurvivor, g_hDeadEyeTime,
 	g_hInfectedShopEnable, g_hInfectedShopTime, g_hInfectedShopColdDown, g_hSurvivorShopColdDown, 
 	g_hImmuneDamageTime, g_hInfectedShopTankLimit, 
@@ -51,7 +51,7 @@ int g_iBoomerKilled, g_iChargerKilled, g_iSmokerKilled, g_iHunterKilled, g_iJock
 	g_iStageComplete, g_iFinalMissionComplete, g_iWipeOutSurvivor, g_iInfiniteAmmoTime, 
 	g_iDeadEyeTime, g_iImmuneDamageTime, g_iInfectedShopTime, g_iInfectedShopTankLimit, g_iInfectedShopWitchLimit,
 	g_iFreezeTime, g_iMaxMoney, g_iNotifyKillInfectedType;
-bool g_bEnable, g_bTKSurvivorEnable, g_bInfectedShopEnable, g_bCookiesCachedEnable;
+bool g_bEnable, g_bTKSurvivorEnable, g_bInfectedShopEnable, g_bCookiesCachedEnable, g_bAdminPunishImmunity;
 float g_fInfectedShopColdDown, g_fSurvivorShopColdDown, g_fWitchSpawnSafetyRange, g_fWitchKillTime;
 
 int ammoOffset, g_iPunishPoint;	
@@ -423,6 +423,7 @@ public void OnPluginStart()
 	g_hKillSurvivor = CreateConVar("sm_shop_infected_survivor_killed", "100", "Giving money for killing a survivor.", FCVAR_NOTIFY, true, 1.0);
 	g_hTKSurvivorEnable = CreateConVar("sm_shop_survivor_TK_enable", "1", "If 1, decrease money if survivor friendly fire each other. (1 hp = 1 dollar)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_hPunishPoint = CreateConVar("sm_shop_survivor_punish", "100", "Decrease money if survivor friendly fire each other. (1 hp = x dollar)", FCVAR_NOTIFY, true, 0.0);
+	g_hAdminPunishImmunity = CreateConVar("sm_shop_admin_punish", "1", "Enable admin immunity", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_hGascanMapOff = CreateConVar("sm_shop_gascan_map_off",	"c1m4_atrium,c6m3_port,c14m2_lighthouse",	"Can not buy gas can in these maps, separate by commas (no spaces). (0=All maps, Empty = none).", FCVAR_NOTIFY );
 	g_hColaMapOff =	CreateConVar("sm_shop_cola_map_off",	"c1m2_streets",	"Can not buy cola in these maps, separate by commas (no spaces). (0=All maps, Empty = none).", FCVAR_NOTIFY );
 	g_hMaxJumpLimit  =	CreateConVar("sm_shop_special_max_jump_limit",	"3",	"Max Air Jump Limit for survivor special item.", FCVAR_NOTIFY, true, 1.0);
@@ -469,6 +470,7 @@ public void OnPluginStart()
 	g_hKillSurvivor.AddChangeHook(ConVarChanged_Cvars);
 	g_hTKSurvivorEnable.AddChangeHook(ConVarChanged_Cvars);
 	g_hPunishPoint.AddChangeHook(ConVarChanged_Cvars);
+	g_hAdminPunishImmunity.AddChangeHook(ConVarChanged_Cvars);
 	g_hMaxJumpLimit.AddChangeHook(ConVarChanged_Cvars);
 	g_hInfiniteAmmoTime.AddChangeHook(ConVarChanged_Cvars);
 	g_hStageComplete.AddChangeHook(ConVarChanged_Cvars);
@@ -639,6 +641,7 @@ void GetCvars()
 	g_iKillSurvivor = g_hKillSurvivor.IntValue;
 	g_bTKSurvivorEnable = g_hTKSurvivorEnable.BoolValue;
 	g_iPunishPoint = g_hPunishPoint.IntValue;
+	g_bAdminPunishImmunity = g_hAdminPunishImmunity.BoolValue;
 	g_iMaxJumpLimit = g_hMaxJumpLimit.IntValue;
 	g_iInfiniteAmmoTime = g_hInfiniteAmmoTime.IntValue;
 	g_iStageComplete = g_hStageComplete.IntValue;
@@ -1172,6 +1175,9 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				// {
 				// 	return;
 				// }
+
+				if(g_bAdminPunishImmunity && (GetUserFlagBits(attacker) & ADMFLAG_GENERIC)) return;
+
 				int punishPoint = damageDone * g_iPunishPoint;
 				g_iCredits[attacker] -= punishPoint;
 				if(g_iCredits[attacker] > 0) 
