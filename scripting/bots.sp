@@ -311,8 +311,8 @@ public void OnPluginStart()
 	g_hRespawnJoin = 		CreateConVar("bots_respawn_on_join", 	"1", 		"玩家第一次进服时如果没有存活的Bot可以接管是否复活. \n0=否, 1=是.", CVAR_FLAGS);
 	g_hSpecCmdLimit = 		CreateConVar("bots_spec_cmd_limit", 	"0", 		"当完全旁观玩家达到多少个时禁止使用sm_spec命令.", CVAR_FLAGS);
 	g_hSpecNextNotify = 	CreateConVar("bots_spec_next_notify", 	"3", 		"完全旁观玩家点击鼠标左键时, 提示加入生还者的方式 \n0=不提示, 1=聊天栏, 2=屏幕中央, 3=弹出菜单.", CVAR_FLAGS);
-	g_esWeapon[0].cFlags = 	CreateConVar("bots_give_slot0", 		"0", 		"主武器给什么. \n0=不给, 131071=所有, 7=微冲, 1560=霰弹, 30720=狙击, 31=Tier1, 32736=Tier2, 98304=Tier0.", CVAR_FLAGS);
-	g_esWeapon[1].cFlags = 	CreateConVar("bots_give_slot1", 		"1", 		"副武器给什么. \n0=不给, 131071=所有.(如果选中了近战且该近战在当前地图上未解锁,则会随机给一把).", CVAR_FLAGS);
+	g_esWeapon[0].cFlags = 	CreateConVar("bots_give_slot0", 		"131071", 	"主武器给什么. \n0=不给, 131071=所有, 7=微冲, 1560=霰弹, 30720=狙击, 31=Tier1, 32736=Tier2, 98304=Tier0.", CVAR_FLAGS);
+	g_esWeapon[1].cFlags = 	CreateConVar("bots_give_slot1", 		"1064", 	"副武器给什么. \n0=不给, 131071=所有.(如果选中了近战且该近战在当前地图上未解锁,则会随机给一把).", CVAR_FLAGS);
 	g_esWeapon[2].cFlags = 	CreateConVar("bots_give_slot2", 		"0", 		"投掷物给什么. \n0=不给, 7=所有.", CVAR_FLAGS);
 	g_esWeapon[3].cFlags =	CreateConVar("bots_give_slot3", 		"1", 		"医疗品给什么. \n0=不给, 15=所有.", CVAR_FLAGS);
 	g_esWeapon[4].cFlags =	CreateConVar("bots_give_slot4", 		"0", 		"药品给什么. \n0=不给, 3=所有.", CVAR_FLAGS);
@@ -349,6 +349,8 @@ public void OnPluginStart()
 
 	RegConsoleCmd("sm_teams", cmdTeamPanel, "团队菜单");
 	RegConsoleCmd("sm_spec", cmdJoinSpectator, "加入旁观者");
+	RegConsoleCmd("sm_s", cmdJoinSpectator, "加入旁观者");
+	RegConsoleCmd("sm_away", cmdJoinSpectator, "加入旁观者");
 	RegConsoleCmd("sm_join", cmdJoinSurvivor, "加入生还者");
 	RegConsoleCmd("sm_tkbot", cmdTakeOverBot, "接管指定BOT");
 
@@ -402,6 +404,10 @@ Action cmdJoinSpectator(int client, int args)
 		SDKCall(g_hSDK_CTerrorPlayer_TakeOverBot, client, true);
 
 	ChangeClientTeam(client, TEAM_SPECTATOR);
+
+	if (!IsFakeClient(client) && bIsFirstTime(client))
+		vRecordSteamID(client);
+
 	return Plugin_Handled;
 }
 
@@ -1043,7 +1049,7 @@ void Event_Player_AFK(Event event, const char[] name, bool dontBroadcast)
 	int client = GetClientOfUserId(event.GetInt("player"));
 	
 	if (IsFakeClient(client))
-	return;
+		return;
 
 	if (!IsFakeClient(client) && bIsFirstTime(client))
 		vRecordSteamID(client);

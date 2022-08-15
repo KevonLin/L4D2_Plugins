@@ -1175,20 +1175,30 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				// {
 				// 	return;
 				// }
+				// CPrintToChatAll("g_bAdminPunishImmunity = %b", g_bAdminPunishImmunity);
+				// CPrintToChatAll("GetUserFlagBits(attacker) = %b", GetUserFlagBits(attacker));
+				// CPrintToChatAll("ADMFLAG_GENERIC = %b", ADMFLAG_GENERIC);
+				if(!g_bAdminPunishImmunity) return;
 
-				if(g_bAdminPunishImmunity && (GetUserFlagBits(attacker) & ADMFLAG_GENERIC)) return;
+				AdminId clientAdmin = GetUserAdmin(attacker);
+				AdminId targetAdmin = GetUserAdmin(victim);
+			
+				if (CanAdminTarget(clientAdmin, targetAdmin)) return;
 
-				int punishPoint = damageDone * g_iPunishPoint;
-				g_iCredits[attacker] -= punishPoint;
-				if(g_iCredits[attacker] > 0) 
-					// CPrintToChat(attacker, "%T", "FF Punish", damageDone * g_iPunishPoint, attacker);
-					CPrintToChat(attacker, "[{olive}TS{default}] You are deducted $%d", punishPoint);
-				if(g_iCredits[attacker] < 0) 
+				if(!(GetUserFlagBits(attacker) & ADMFLAG_GENERIC))
 				{
-					g_iCredits[attacker] = 0;
-					if (!IsAliveSurvivor(attacker)) return;
-					ForcePlayerSuicide(attacker);
-					CPrintToChat(attacker, "[{olive}TS{default}] You died because you had no money");
+					int punishPoint = damageDone * g_iPunishPoint;
+					g_iCredits[attacker] -= punishPoint;
+					if(g_iCredits[attacker] > 0) 
+						// CPrintToChat(attacker, "%T", "FF Punish", damageDone * g_iPunishPoint, attacker);
+						CPrintToChat(attacker, "[{olive}TS{default}] You are deducted $%d", punishPoint);
+					if(g_iCredits[attacker] < 0) 
+					{
+						g_iCredits[attacker] = 0;
+						if (!IsAliveSurvivor(attacker)) return;
+						ForcePlayerSuicide(attacker);
+						CPrintToChat(attacker, "[{olive}TS{default}] You died because you had no money");
+					}
 				}
 			}
 		}
