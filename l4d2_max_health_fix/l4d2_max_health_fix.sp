@@ -20,14 +20,14 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	CreateConVar("max_health_fix", PLUGIN_VERSION, "", FCVAR_NOTIFY|FCVAR_DONTRECORD);
-	CreateTimer(1.0, UpdateHealth, _, TIMER_REPEAT);
+	CreateTimer(0.5, UpdateHealth, _, TIMER_REPEAT);
 }
 
 public Action UpdateHealth(Handle timer)
 {
 	for(int i = 1; i <= MaxClients; ++i)
 	{
-		if(!IsClientInGame(i) || GetClientTeam(i) != 2 || !IsPlayerAlive(i) || IsFakeClient(i))
+		if(!IsClientInGame(i) || GetClientTeam(i) != 2 || !IsPlayerAlive(i) || IsFakeClient(i) || IsPlayerIncapped(i))
 			continue;
 		
 		// 获取实血和虚血
@@ -49,6 +49,14 @@ public Action UpdateHealth(Handle timer)
 	}
 
 	return Plugin_Continue;
+}
+
+bool IsPlayerIncapped(int client) {
+	if(GetEntProp(client, Prop_Send, "m_isIncapacitated") == 0 || GetEntProp(client, Prop_Send, "m_isHangingFromLedge") == 0 || GetEntProp(client, Prop_Send, "m_isFallingFromLedge") == 0) {
+		return false;
+	} else {
+		return true;
+	}
 }
 
 int GetSurvivorHardHealth(int client)
