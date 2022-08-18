@@ -27,7 +27,7 @@ public Action UpdateHealth(Handle timer)
 {
 	for(int i = 1; i <= MaxClients; ++i)
 	{
-		if(!IsClientInGame(i) || GetClientTeam(i) != 2 || !IsPlayerAlive(i) || IsFakeClient(i) || IsPlayerIncapped(i))
+		if(!IsClientInGame(i) || GetClientTeam(i) != 2 || !IsPlayerAlive(i) || IsFakeClient(i) || IsIncapacitated(i) || IsHandingFromLedge(i))
 			continue;
 		
 		// 获取实血和虚血
@@ -40,7 +40,7 @@ public Action UpdateHealth(Handle timer)
 		if (finalPermanentHealth + finalTempHealth > MAXHP)
 		{
 			finalPermanentHealth = (((finalPermanentHealth) < MAXHP) ? finalPermanentHealth : MAXHP);
-			finalTempHealth = (((MAXHP - finalPermanentHealth) < 0) ? 0 : (MAXHP - finalPermanentHealth));
+			finalTempHealth = (((MAXHP - finalPermanentHealth) > 0) ? (MAXHP - finalPermanentHealth) : 0);
 		
 			SetSurvivorPermanentHealth(i, finalPermanentHealth);
 			SetSurvivorTempHealth(i, finalTempHealth);
@@ -51,12 +51,14 @@ public Action UpdateHealth(Handle timer)
 	return Plugin_Continue;
 }
 
-bool IsPlayerIncapped(int client) {
-	if(GetEntProp(client, Prop_Send, "m_isIncapacitated") == 0 || GetEntProp(client, Prop_Send, "m_isHangingFromLedge") == 0 || GetEntProp(client, Prop_Send, "m_isFallingFromLedge") == 0) {
-		return false;
-	} else {
-		return true;
-	}
+stock bool IsIncapacitated(int client)
+{
+	return view_as<bool>(GetEntProp(client, Prop_Send, "m_isIncapacitated"));
+}
+
+stock bool IsHandingFromLedge(int client)
+{
+	return view_as<bool>(GetEntProp(client, Prop_Send, "m_isHangingFromLedge") || GetEntProp(client, Prop_Send, "m_isFallingFromLedge"));
 }
 
 int GetSurvivorHardHealth(int client)
