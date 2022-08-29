@@ -98,6 +98,19 @@ public void Event_WitchKilled(Event hEvent, const char[] sEventName, bool bDontB
 
 		if (!IsClientInGame(client)) return;
 
+		int flags = GetCommandFlags("give");	
+		SetCommandFlags("give", flags & ~FCVAR_CHEAT);
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i))
+			{
+				FakeClientCommand(i, "give health");
+				SetSurvivorPermanentHealth(i, MaxHP);
+				SetSurvivorTempHealth(i, 0);
+			}
+		}
+		SetCommandFlags("give", flags|FCVAR_CHEAT);
+
 		SetSurvivorPermanentHealth(client, finalPermanentHealth);
 		SetSurvivorTempHealth(client, finalTempHealth);
 	}
