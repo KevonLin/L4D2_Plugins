@@ -22,15 +22,16 @@ bool
 
 int
 	g_icvarNowMaxUID,
-	PlayerUID[MAXPLAYERS + 1],
 	// RoundCount[MAXPLAYERS + 1],
-	PlayerGameCount[MAXPLAYERS + 1];
+	playerFinishCount[MAXPLAYERS + 1],
+	playerGameCount[MAXPLAYERS + 1],
+	playerUID[MAXPLAYERS + 1];
 
 float
 	startTime,
 	endTime,
 	timeDistance,
-	PlayerGameTime[MAXPLAYERS + 1];
+	playerGameTime[MAXPLAYERS + 1];
 
 char
 	logFile[256];
@@ -55,10 +56,10 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 }
 
 public void OnPluginStart() {
-	g_cvarEnable = CreateConVar("clvplus_uid_enable", "1", "Plugin enable", 0, true, 0.0, true, 1.0);
-	g_cvarNowMaxUID = CreateConVar("clvplus_uid_count", "100", "Max UID of server now", 0, true, 0.0);
+	g_cvarEnable = CreateConVar("kz_uid_enable", "1", "Plugin enable", 0, true, 0.0, true, 1.0);
+	g_cvarNowMaxUID = CreateConVar("kz_uid_count", "100", "Max UID of server now", 0, true, 0.0);
 
-	AutoExecConfig(true, "clvplus_uid_system");
+	AutoExecConfig(true, "kz_uid_system");
 
 	GetCvar();
 
@@ -69,7 +70,7 @@ public void OnPluginStart() {
 	RegAdminCmd("sm_swapuid", SwapUidCommand, ADMFLAG_ROOT);
 	RegAdminCmd("sm_refreshuid", RefreshUidCommand, ADMFLAG_ROOT);
 
-	BuildPath(Path_SM, logFile, sizeof(logFile), "logs/clvplus_uid_system.log");
+	BuildPath(Path_SM, logFile, sizeof(logFile), "logs/kz_uid_system.log");
 
 	g_cvarEnable.AddChangeHook(ConVarChanged_Cvars);
 
@@ -97,23 +98,69 @@ public Action Event_RoundStart(Event hEvent, const char[] eName, bool dontBroadc
 	#if defined DEBUG
 	LogToFile(logFile, "Event_RoundStart 被调用");
 	#endif
-	// 获取正在游戏玩家对局数量并且+1 获取当前时间戳
+	// 获取正在游戏玩家对局数量 获取当前时间戳
 	startTime = GetGameTime();
 	for (int client = 1; client <= MaxClients; client++) {
 		if (IsValidPlayer(client)) {
 			LoadUid(client);
 			LoadTime(client);
 			LoadGameCount(client);
+			LoadFinishCount(client);
 		}
 	}
 
 	return Plugin_Continue;
 }
 
+public void OnMapEnd() {
+	#if defined DEBUG
+	LogToFile(logFile, "OnMapEnd 被调用");
+	#endif
+	// 保存玩家过图数量
+
+	endTime = GetGameTime();
+	timeDistance = endTime - startTime;
+	char dist[32];
+	Format(dist, sizeof(dist), "%.2f", timeDistance / 3600);
+	float fDistance;
+	StringToFloatEx(dist, fDistance);
+	#if defined DEBUG
+	char sLog[256];
+	Format(sLog, sizeof(sLog), "Dist = %f", fDistance);
+	LogToFile(logFile, sLog);
+	#endif
+	
+	for (int client = 1; client <= MaxClients; client++) {
+		if(!(IsValidPlayer(client))) continue;
+		if(!(IsPlayerGaming(client))) continue;
+		// if(isStartInGame[client]) {
+		playerGameTime[client] += fDistance;
+		SaveTime(client);
+		LoadTime(client);
+		// if (++RoundCount[client] == 2) {
+		playerGameCount[client]++;
+		playerFinishCount[client]++;
+			// RoundCount[client] = 0;
+		SaveGameCount(client);
+		LoadGameCount(client);
+		SaveFinishCount(client);
+		LoadFinishCount(client);
+		// }
+		// 	isStartInGame[client] = false;
+		// }
+	}
+
+	startTime = 0.0;
+	endTime = 0.0;
+	timeDistance = 0.0;
+}
+
+	// versus only
 public Action Event_RoundEnd(Event hEvent, const char[] eName, bool dontBroadcast) {
 	#if defined DEBUG
 	LogToFile(logFile, "Event_RoundEnd 被调用");
 	#endif
+
 	// 获取玩家对局数量和当前时间戳 保存正在游戏的玩家游戏时间和游戏对局
 	endTime = GetGameTime();
 	timeDistance = endTime - startTime;
@@ -131,14 +178,17 @@ public Action Event_RoundEnd(Event hEvent, const char[] eName, bool dontBroadcas
 		if(!(IsValidPlayer(client))) continue;
 		if(!(IsPlayerGaming(client))) continue;
 		// if(isStartInGame[client]) {
-		PlayerGameTime[client] += fDistance;
+		playerGameTime[client] += fDistance;
 		SaveTime(client);
 		LoadTime(client);
 		// if (++RoundCount[client] == 2) {
-		PlayerGameCount[client]++;
+		playerGameCount[client]++;
+		playerFinishCount[client]++;
 			// RoundCount[client] = 0;
 		SaveGameCount(client);
 		LoadGameCount(client);
+		SaveFinishCount(client);
+		LoadFinishCount(client);
 		// }
 		// 	isStartInGame[client] = false;
 		// }
@@ -154,15 +204,15 @@ public Action Event_RoundEnd(Event hEvent, const char[] eName, bool dontBroadcas
 public void OnClientPostAdminCheck(int client) {
 	if (!IsValidPlayer(client)) return;
 
-	#if defined DEBUG
-	LogToFile(logFile, "OnClientPostAdminCheck 被调用");
-	if(IsFakeClient(client) || CheckCommandAccess(client, "", ADMFLAG_ROOT) == true) {
-		return;
-	}
-	if(!(GetUserFlagBits(client) & ADMFLAG_GENERIC)) {
-		KickClient(client, "服务器调试中...");
-	}
-	#endif
+	// #if defined DEBUG
+	// LogToFile(logFile, "OnClientPostAdminCheck 被调用");
+	// if(IsFakeClient(client) || CheckCommandAccess(client, "", ADMFLAG_ROOT) == true) {
+	// 	return;
+	// }
+	// if(!(GetUserFlagBits(client) & ADMFLAG_GENERIC)) {
+	// 	KickClient(client, "服务器调试中...");
+	// }
+	// #endif
 
 	// 读取UID 如果不存在则创建 创建后保存UID并重新读取UID 为玩家显示欢迎界面
 	if (!(LoadUid(client))) {
@@ -172,28 +222,29 @@ public void OnClientPostAdminCheck(int client) {
 	RefreshUID();
 	LoadTime(client);
 	LoadGameCount(client);
+	LoadFinishCount(client);
 	
 	ShowWelcomePanel(client);
 
-	CPrintToChatAll("玩家 {olive}%N{default}({olive}UID{default}:%d{default}) 加入游戏", client, PlayerUID[client]);
+	CPrintToChatAll("玩家 {olive}%N{default}({olive}UID{default}:%d{default}) 加入游戏", client, playerUID[client]);
 }
 
 public void OnClientAuthorized(int client) {
 	if (IsFakeClient(client)) return;
-	CPrintToChatAll("玩家 {olive}%N{default} 正在连接...", client, PlayerUID[client]);
+	CPrintToChatAll("玩家 {olive}%N{default} 正在连接...", client, playerUID[client]);
 }
 
 // public void OnClientPutInServer(int client) {
 // 	if (IsFakeClient(client)) return;
-// 	CPrintToChatAll("{blue}[{default}UID{blue}] {default}玩家 {olive}%N{default}({blue}%d{default}) 加入游戏", client, PlayerUID[client]);
+// 	CPrintToChatAll("{blue}[{default}UID{blue}] {default}玩家 {olive}%N{default}({blue}%d{default}) 加入游戏", client, playerUID[client]);
 // }
 
 public Action Event_PlayerDisconnect(Event hEvent, const char[] eName, bool dontBroadcast) {
 	int client = GetClientOfUserId(hEvent.GetInt("userid"));
 	if(!(IsValidPlayer(client))) return Plugin_Continue;
-	CPrintToChatAll("玩家 {olive}%N{default}({olive}UID{default}:%d{default}) 离开游戏", client, PlayerUID[client]);
-	PlayerUID[client] = 0;
-	return Plugin_Continue;
+	CPrintToChatAll("玩家 {olive}%N{default}({olive}UID{default}:%d{default}) 离开游戏", client, playerUID[client]);
+	playerUID[client] = 0;
+	return Plugin_Handled;
 }
 
 public Action UidCommand(int client, int args) {
@@ -214,7 +265,7 @@ void UIDMenu(int client){
 		if(!(IsValidPlayer(i))) continue;
 		char cIndex[32];
 		IntToString(i, cIndex, sizeof(cIndex));
-		FormatEx(sBuffer, sizeof(sBuffer), "(%d)%N", PlayerUID[i], i);
+		FormatEx(sBuffer, sizeof(sBuffer), "(%d)%N", playerUID[i], i);
 		vMenu.AddItem(cIndex, sBuffer);
 	}
 
@@ -242,10 +293,13 @@ void ShowDetailPanel(int client, int target) {
 	sPanel.SetTitle(sBuffer);
 	
 	sPanel.DrawText(" ");
-	FormatEx(sBuffer, sizeof(sBuffer), "游戏时长:%.2f小时", PlayerGameTime[target]);
+	FormatEx(sBuffer, sizeof(sBuffer), "游戏时长:%.2f小时", playerGameTime[target]);
 	sPanel.DrawText(sBuffer);
 	sPanel.DrawText(" ");
-	FormatEx(sBuffer, sizeof(sBuffer), "游戏局数:%d场", PlayerGameCount[target]);
+	FormatEx(sBuffer, sizeof(sBuffer), "游戏局数:%d场", playerGameCount[target]);
+	sPanel.DrawText(sBuffer);
+	sPanel.DrawText(" ");
+	FormatEx(sBuffer, sizeof(sBuffer), "完成局数:%d场", playerFinishCount[target]);
 	sPanel.DrawText(sBuffer);
 
 	sPanel.Send(client, DetailPanelHundler, 30);
@@ -315,7 +369,7 @@ public Action SetUidCommand(int client, int args) {
 bool IsSteamIDExist(char[] SteamID) {
 	Database db = GetDBInstance();
 	char sQuery[256];
-	FormatEx(sQuery, sizeof(sQuery), "SELECT steamid FROM clvplus_uid WHERE steamid = '%s'", SteamID);
+	FormatEx(sQuery, sizeof(sQuery), "SELECT steamid FROM kz_uid WHERE steamid = '%s'", SteamID);
 	DBResultSet rs = SQL_Query(db, sQuery);
 	if (rs == null) {
 		char error[255];
@@ -340,7 +394,7 @@ bool UtilSetUid(const char[] SteamId, const int uid) {
 
 	Database db = GetDBInstance();
 	char sQuery[256];
-	FormatEx(sQuery, sizeof(sQuery), "UPDATE clvplus_uid SET uid = %d WHERE steamid = '%s'", uid, SteamId);
+	FormatEx(sQuery, sizeof(sQuery), "UPDATE kz_uid SET uid = %d WHERE steamid = '%s'", uid, SteamId);
 	if (!SQL_FastQuery(db, sQuery)) {
 		char error[255];
 		SQL_GetError(db, error, sizeof(error));
@@ -367,7 +421,7 @@ public Action SwapUidCommand(int client, int args) {
 
 	Database db = GetDBInstance();
 	char sQuery[256];
-	FormatEx(sQuery, sizeof(sQuery), "SELECT steamid FROM clvplus_uid WHERE uid = %d", uid1);
+	FormatEx(sQuery, sizeof(sQuery), "SELECT steamid FROM kz_uid WHERE uid = %d", uid1);
 	DBResultSet rs = SQL_Query(db, sQuery);
 	if (rs == null) {
 		char error[255];
@@ -383,7 +437,7 @@ public Action SwapUidCommand(int client, int args) {
 	delete db;
 
 	db = GetDBInstance();
-	FormatEx(sQuery, sizeof(sQuery), "SELECT steamid FROM clvplus_uid WHERE uid = %d", uid2);
+	FormatEx(sQuery, sizeof(sQuery), "SELECT steamid FROM kz_uid WHERE uid = %d", uid2);
 	rs = SQL_Query(db, sQuery);
 	if (rs == null) {
 		char error[255];
@@ -418,7 +472,7 @@ bool UtilsSwapUID(int client, const char[] steamId1, const char[] steamId2) {
 	int uid1, uid2;
 	Database db = GetDBInstance();
 	char sQuery[256];
-	FormatEx(sQuery, sizeof(sQuery), "SELECT uid FROM clvplus_uid WHERE steamid = '%s'", steamId1);
+	FormatEx(sQuery, sizeof(sQuery), "SELECT uid FROM kz_uid WHERE steamid = '%s'", steamId1);
 	DBResultSet rs = SQL_Query(db, sQuery);
 	if (rs == null) {
 		char error[255];
@@ -437,7 +491,7 @@ bool UtilsSwapUID(int client, const char[] steamId1, const char[] steamId2) {
 	}
 
 	db = GetDBInstance();
-	FormatEx(sQuery, sizeof(sQuery), "SELECT uid FROM clvplus_uid WHERE steamid = '%s'", steamId2);
+	FormatEx(sQuery, sizeof(sQuery), "SELECT uid FROM kz_uid WHERE steamid = '%s'", steamId2);
 	rs = SQL_Query(db, sQuery);
 	if (rs == null) {
 		char error[255];
@@ -456,7 +510,7 @@ bool UtilsSwapUID(int client, const char[] steamId1, const char[] steamId2) {
 	}
 
 	db = GetDBInstance();
-	FormatEx(sQuery, sizeof(sQuery), "UPDATE clvplus_uid SET uid = %d WHERE steamid = '%s'", 0, steamId1);
+	FormatEx(sQuery, sizeof(sQuery), "UPDATE kz_uid SET uid = %d WHERE steamid = '%s'", 0, steamId1);
 	if (!SQL_FastQuery(db, sQuery)) {
 		char error[255];
 		SQL_GetError(db, error, sizeof(error));
@@ -465,7 +519,7 @@ bool UtilsSwapUID(int client, const char[] steamId1, const char[] steamId2) {
 	}
 
 	db = GetDBInstance();
-	FormatEx(sQuery, sizeof(sQuery), "UPDATE clvplus_uid SET uid = %d WHERE steamid = '%s'", uid1, steamId2);
+	FormatEx(sQuery, sizeof(sQuery), "UPDATE kz_uid SET uid = %d WHERE steamid = '%s'", uid1, steamId2);
 	if (!SQL_FastQuery(db, sQuery)) {
 		char error[255];
 		SQL_GetError(db, error, sizeof(error));
@@ -474,7 +528,7 @@ bool UtilsSwapUID(int client, const char[] steamId1, const char[] steamId2) {
 	}
 
 	db = GetDBInstance();
-	FormatEx(sQuery, sizeof(sQuery), "UPDATE clvplus_uid SET uid = %d WHERE steamid = '%s'", uid2, steamId1);
+	FormatEx(sQuery, sizeof(sQuery), "UPDATE kz_uid SET uid = %d WHERE steamid = '%s'", uid2, steamId1);
 	if (!SQL_FastQuery(db, sQuery)) {
 		char error[255];
 		SQL_GetError(db, error, sizeof(error));
@@ -512,15 +566,61 @@ Database GetDBInstance() {
 
 	char error[255];
 
-	Database db = SQLite_UseDatabase("clvplus_uid_system", error, sizeof(error));
+	Database db = SQLite_UseDatabase("kz_uid_system", error, sizeof(error));
 	if (db == INVALID_HANDLE)
 		SetFailState(error);
 
 	SQL_LockDatabase(db);
-	SQL_FastQuery(db, "CREATE TABLE IF NOT EXISTS clvplus_uid (uid INTTGER PRIMARY KEY ON CONFLICT REPLACE, steamid TEXT, gametime REAL, gamecount INTEGER, used INTEGER);");
+	SQL_FastQuery(db, "CREATE TABLE IF NOT EXISTS kz_uid (uid INTTGER PRIMARY KEY ON CONFLICT REPLACE, steamid TEXT, gametime REAL, gamecount INTEGER, finishcount INTEGER, used INTEGER);");
 	SQL_UnlockDatabase(db);
 
 	return db;
+}
+
+void SaveFinishCount(int client) {
+	// 保存完成游戏局数到数据库
+	#if defined DEBUG
+	LogToFile(logFile, "SaveFinishCount 被调用");
+	#endif
+
+	Database db = GetDBInstance();
+	char sQuery[256], SteamId[64];
+	GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId));
+	FormatEx(sQuery, sizeof(sQuery), "UPDATE kz_uid SET finishcount = %d WHERE steamid = '%s'", playerFinishCount[client], SteamId);
+	if (!SQL_FastQuery(db, sQuery)) {
+		char error[255];
+		SQL_GetError(db, error, sizeof(error));
+		PrintToServer("Failed to query (error: %s)", error);
+	}
+}
+
+void LoadFinishCount(int client) {
+	// 从数据库读取玩家完成局数
+	#if defined DEBUG
+	LogToFile(logFile, "LoadFinishCount 被调用");
+	#endif
+
+	Database db = GetDBInstance();
+	DBResultSet rs;
+	char sQuery[256], SteamId[64];
+	GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId));
+	FormatEx(sQuery, sizeof(sQuery), "SELECT finishcount FROM kz_uid WHERE steamid = '%s'", SteamId);
+	rs = SQL_Query(db, sQuery);
+	if (rs == null) {
+		char error[255];
+		SQL_GetError(db, error, sizeof(error));
+		PrintToServer("Failed to rs (error: %s)", error);
+		delete rs;
+		delete db;
+	} else {
+		if (SQL_FetchRow(rs)) {
+			playerFinishCount[client] = SQL_FetchInt(rs, 0);
+			delete rs;
+			delete db;
+		}
+	}
+	delete rs;
+	delete db;
 }
 
 void SaveTime(int client) {
@@ -532,7 +632,7 @@ void SaveTime(int client) {
 	Database db = GetDBInstance();
 	char sQuery[256], SteamId[64];
 	GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId));
-	FormatEx(sQuery, sizeof(sQuery), "UPDATE clvplus_uid SET gametime = %f WHERE steamid = '%s'", PlayerGameTime[client], SteamId);
+	FormatEx(sQuery, sizeof(sQuery), "UPDATE kz_uid SET gametime = %f WHERE steamid = '%s'", playerGameTime[client], SteamId);
 	if (!SQL_FastQuery(db, sQuery)) {
 		char error[255];
 		SQL_GetError(db, error, sizeof(error));
@@ -549,7 +649,7 @@ void LoadTime(int client) {
 	DBResultSet rs;
 	char sQuery[256], SteamId[64];
 	GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId));
-	FormatEx(sQuery, sizeof(sQuery), "SELECT gametime FROM clvplus_uid WHERE steamid = '%s'", SteamId);
+	FormatEx(sQuery, sizeof(sQuery), "SELECT gametime FROM kz_uid WHERE steamid = '%s'", SteamId);
 	rs = SQL_Query(db, sQuery);
 	if (rs == null) {
 		char error[255];
@@ -559,7 +659,7 @@ void LoadTime(int client) {
 		delete db;
 	} else {
 		if (SQL_FetchRow(rs)) {
-			PlayerGameTime[client] = SQL_FetchFloat(rs, 0);
+			playerGameTime[client] = SQL_FetchFloat(rs, 0);
 			delete rs;
 			delete db;
 		}
@@ -577,7 +677,7 @@ void SaveGameCount(int client) {
 	Database db = GetDBInstance();
 	char sQuery[256], SteamId[64];
 	GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId));
-	FormatEx(sQuery, sizeof(sQuery), "UPDATE clvplus_uid SET gamecount = %d WHERE steamid = '%s'", PlayerGameCount[client], SteamId);
+	FormatEx(sQuery, sizeof(sQuery), "UPDATE kz_uid SET gamecount = %d WHERE steamid = '%s'", playerGameCount[client], SteamId);
 	if (!SQL_FastQuery(db, sQuery)) {
 		char error[255];
 		SQL_GetError(db, error, sizeof(error));
@@ -594,7 +694,7 @@ void LoadGameCount(int client) {
 	DBResultSet rs;
 	char sQuery[256], SteamId[64];
 	GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId));
-	FormatEx(sQuery, sizeof(sQuery), "SELECT gamecount FROM clvplus_uid WHERE steamid = '%s'", SteamId);
+	FormatEx(sQuery, sizeof(sQuery), "SELECT gamecount FROM kz_uid WHERE steamid = '%s'", SteamId);
 	rs = SQL_Query(db, sQuery);
 	if (rs == null) {
 		char error[255];
@@ -604,7 +704,7 @@ void LoadGameCount(int client) {
 		delete db;
 	} else {
 		if (SQL_FetchRow(rs)) {
-			PlayerGameCount[client] = SQL_FetchInt(rs, 0);
+			playerGameCount[client] = SQL_FetchInt(rs, 0);
 			delete rs;
 			delete db;
 		}
@@ -623,7 +723,7 @@ bool LoadUid(int client) {
 	DBResultSet rs;
 	char sQuery[256], SteamId[64];
 	GetClientAuthId(client, AuthId_Steam2, SteamId, sizeof(SteamId));
-	FormatEx(sQuery, sizeof(sQuery), "SELECT uid FROM clvplus_uid WHERE steamid = '%s'", SteamId);
+	FormatEx(sQuery, sizeof(sQuery), "SELECT uid FROM kz_uid WHERE steamid = '%s'", SteamId);
 	rs = SQL_Query(db, sQuery);
 	if (rs == null) {
 		char error[255];
@@ -634,7 +734,7 @@ bool LoadUid(int client) {
 		return false;
 	} else {
 		if (SQL_FetchRow(rs)) {
-			PlayerUID[client] = SQL_FetchInt(rs, 0);
+			playerUID[client] = SQL_FetchInt(rs, 0);
 			delete rs;
 			delete db;
 			return true;
@@ -657,7 +757,7 @@ void CreateNewUid(int client) {
 	#if defined LOGUID
 	LogToFile(logFile, "%N<%s>获取UID:%d", client, SteamId, newID);
 	#endif
-	FormatEx(sQuery, sizeof(sQuery), "INSERT INTO clvplus_uid (uid, steamid, gametime, gamecount, used) VALUES (%d, '%s', 0, 0, '1')", newID, SteamId);
+	FormatEx(sQuery, sizeof(sQuery), "INSERT INTO kz_uid (uid, steamid, gametime, gamecount, used) VALUES (%d, '%s', 0, 0, '1')", newID, SteamId);
 	if (!SQL_FastQuery(db, sQuery)) {
 		char error[255];
 		SQL_GetError(db, error, sizeof(error));
@@ -681,7 +781,7 @@ bool IsUIDUsed(int uid) {
 	Database db = GetDBInstance();
 	DBResultSet rs;
 	char sQuery[256];
-	FormatEx(sQuery, sizeof(sQuery), "SELECT used FROM clvplus_uid WHERE uid = '%d'", uid);
+	FormatEx(sQuery, sizeof(sQuery), "SELECT used FROM kz_uid WHERE uid = '%d'", uid);
 	rs = SQL_Query(db, sQuery);
 	if (rs == null) {
 		char error[255];
