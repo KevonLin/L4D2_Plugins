@@ -223,14 +223,17 @@ public void RoundStart_Event(Event hEvent, const char[] eName, bool dontBroadcas
 
 public void RoundEnd_Event(Event hEvent, const char[] eName, bool dontBroadcast)
 {
+	CreateTimer(10.0, Timer_ChangeVoteNextMap, _);
+	return;
+}
+
+public Action Timer_ChangeVoteNextMap(Handle timer, any data){
 	if(strcmp(g_sVoteNextMapIndex, "") != 0)
 	{
 		g_sVoteNextMapIndex = "";
 		ServerCommand("changelevel %s", g_sVoteNextMapCmdIndex);
-		return;
 	}
-
-	return;
+	return Plugin_Handled;
 }
 
 public void OnMapStart()
@@ -1411,25 +1414,25 @@ public Action ExecVoteRes(Handle timer, any client)
 		case (view_as<voteType>(thirdmap)):
 		{
 			ChangeCustomMap();
-			LogMessage("Vote to change custom map pass");	
+			LogMessage("Vote to change custom map [%s] pass", g_sVoteCustomMapName);	
 		}
 
 		case (view_as<voteType>(ban)):
 		{
 			BanPlayer();
-			LogMessage("Vote to ban player pass");	
+			LogMessage("Vote to ban player [%s] pass", g_selectClient);	
 		}
 
 		case (view_as<voteType>(kick)):
 		{
 			KickPlayer();
-			LogMessage("Vote to kick player pass");	
+			LogMessage("Vote to kick player [%s] pass", g_selectClient);	
 		}
 
 		case (view_as<voteType>(mute)):
 		{
 			MutePlayer();
-			LogMessage("Vote to mute player pass");	
+			LogMessage("Vote to mute player [%s] pass", g_selectClient);	
 		}
 
 		case (view_as<voteType>(addons)):
@@ -1447,7 +1450,7 @@ public Action ExecVoteRes(Handle timer, any client)
 		case (view_as<voteType>(config)):
 		{
 			LoadConfig();
-			LogMessage("Vote to change config pass");	
+			LogMessage("Vote to change [%s] config pass", g_sCfg);	
 		}
 	}
 
@@ -1523,8 +1526,8 @@ void ChangeNextMap()
 
 void ChangeCustomMap()
 {
-	CreateTimer(3.0, ChangeCustomMapDelay, _);
-	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Change custom to {blue}%s {default}in {blue}3s", g_sVoteCustomMapName);
+	CreateTimer(3.0, Timer_ChangeCustomMapDelay, _);
+	CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Map will change to {blue}%s {default}in {blue}3s", g_sVoteCustomMapName);
 }
 
 void BanPlayer()
@@ -1598,7 +1601,7 @@ public Action RestartMap(Handle timer, any client)
 	return Plugin_Continue;
 }
 
-public Action ChangeCustomMapDelay(Handle timer, any client)
+public Action Timer_ChangeCustomMapDelay(Handle timer, any client)
 {
 	ServerCommand("changelevel %s", g_sVoteCustomMapIndex);
 
