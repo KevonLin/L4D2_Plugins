@@ -20,6 +20,7 @@ ConVar
 	cvarInfMgrDebug;
 bool
 	// g_bCvarEnable,
+	isChargerUseAbility[MAXPLAYERS + 1],
 	g_bDebug;
 
 float
@@ -56,6 +57,7 @@ public void OnPluginStart() {
 
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_PostNoCopy);
 	HookEvent("charger_charge_start", Event_ChargerChargeStart, EventHookMode_PostNoCopy);
+	HookEvent("respawning", Event_PlayerRespawning, EventHookMode_PostNoCopy);
 	// HookEvent("player_shoved", Event_PlayerShoved, EventHookMode_PostNoCopy);
 }
 
@@ -84,6 +86,19 @@ void InitDelay() {
 public void ConvarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
 	GetCvar();
 }
+
+public void Event_PlayerRespawning(Event hEvent, const char[] sEventName, bool bDontBroadcast) {
+	int client = GetClientOfUserId(hEvent.GetInt("userid"));
+	if (client == 0 || !IsClientInGame(client)) {
+		return;
+	}
+
+	int zombieclass = GetInfectedClass(client);
+	if (zombieclass == L4D2Infected_Charger) {
+		isChargerUseAbility[client] = false;
+	}
+}
+
 
 public void Event_PlayerHurt(Event hEvent, const char[] sEventName, bool bDontBroadcast) {
 	int victim = GetClientOfUserId(hEvent.GetInt("userid"));
@@ -116,9 +131,10 @@ public void Event_PlayerHurt(Event hEvent, const char[] sEventName, bool bDontBr
 			finaltime[attacker] = fIntervalCount[attacker] - g_fChangerAttackDelay; 
 			duration[attacker] = time + finaltime[attacker];
 			
-			if (duration[attacker] + g_fChangerAttackDelay >= timestamp[attacker]) {
+			if (isChargerUseAbility[attacker] && (duration[attacker] + g_fChangerAttackDelay >= timestamp[attacker])) {
 				SetInfectedAbilityTimer(attacker, duration[attacker], finaltime[attacker]);
 			} else {
+				isChargerUseAbility[attacker] = false;
 				SetInfectedAbilityTimer(attacker, zduration, zerotime);
 			}
 
@@ -154,6 +170,11 @@ public void Event_ChargerChargeStart(Event hEvent, const char[] sEventName, bool
 	if (attacker == 0 || !IsClientInGame(attacker)) {
 		return;
 	}
+
+	if(!isChargerUseAbility[attacker]){
+		isChargerUseAbility[attacker] = true;
+	}
+
 	fIntervalCount[attacker] = g_fChargerInterval;
 }
 /*
