@@ -61,12 +61,29 @@ public Action EventChargerCarryStart(Event hEvent, const char[] eName, bool dont
 {
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "victim"));
 
-	int health = GetEntProp(victim, Prop_Send, "m_iHealth");
+	int pHealth = GetSurvivorHardHealth(victim);
+	int tHealth = GetSurvivorTempHealth(victim);
 
-	if(health > iDmgChargerCatch)
+	if(pHealth + tHealth > iDmgChargerCatch)
 	{
-		health -= iDmgChargerCatch;
-		SetEntProp(victim, Prop_Send, "m_iHealth", health);
+		if(tHealth > 0)
+		{
+			if(tHealth > iDmgChargerCatch)
+			{
+				tHealth -= iDmgChargerCatch;
+				SetSurvivorTempHealth(victim, tHealth);
+			}
+			else
+			{
+				SetSurvivorPermanentHealth(victim, pHealth - 5 + tHealth);
+				SetSurvivorTempHealth(victim, 0);
+			}
+		}
+		else
+		{
+			pHealth -= iDmgChargerCatch;
+			SetSurvivorPermanentHealth(victim, pHealth);
+		}
 	}
 	else
 	{
@@ -96,4 +113,26 @@ void vIncapPlayer(int client)
 	SetEntityHealth(client, 1);
 	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
 	SDKHooks_TakeDamage(client, 0, 0, 100.0);
+}
+
+int GetSurvivorHardHealth(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iHealth");
+}
+
+int GetSurvivorTempHealth(int client)
+{
+	int temphp = RoundToCeil(GetEntPropFloat(client, Prop_Send, "m_healthBuffer") - ((GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_healthBufferTime")) * GetConVarFloat(FindConVar("pain_pills_decay_rate")))) - 1;
+	return (temphp > 0 ? temphp : 0);
+}
+
+void SetSurvivorPermanentHealth(int client, int health)
+{
+	SetEntProp(client, Prop_Send, "m_iHealth", health);
+}
+
+void SetSurvivorTempHealth(int client, int health)
+{
+	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", float(health));
+	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 }
