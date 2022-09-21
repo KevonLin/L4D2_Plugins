@@ -177,13 +177,13 @@ public void Event_ChargerChargeStart(Event hEvent, const char[] sEventName, bool
 
 	fIntervalCount[attacker] = g_fChargerInterval;
 }
-/*
-public Action L4D_OnShovedBySurvivor(int client, int victim, const float vecDir[3]) {
-	if (!g_bCvarEnable) return Plugin_Continue;
 
-	// int victim = GetClientOfUserId(hEvent.GetInt("userid"));
+public Action L4D_OnShovedBySurvivor(int client, int victim, const float vecDir[3]) {
+	// if (!g_bCvarEnable) return Plugin_Continue;
+
+	// int victim = GetClientOfUserId(hEvent.GetInt("userid"));	
 	PrintToChatAll("%N被推", victim);
-	// if (!GetInfectedAbilityTimer(victim, timestamp[victim], duration[victim])) return;
+	if (!GetInfectedAbilityTimer(victim, timestamp[victim], duration[victim])) return Plugin_Continue;
 
 	int zombieclass = GetInfectedClass(victim);
 	if (zombieclass == L4D2Infected_Tank) {
@@ -192,23 +192,41 @@ public Action L4D_OnShovedBySurvivor(int client, int victim, const float vecDir[
 
 	// float time = GetGameTime();
 	// float zerotime = 0.5;
-	// // float jockeyTime = 1.5;
+	// float jockeyTime = 1.5;
 	// float zduration;
-	// 当Spitter被推后技能马上冷却
 	if (zombieclass == L4D2Infected_Spitter) {
-		SDKHooks_TakeDamage(victim, client, client, 1.0);
+		CreateTimer(0.1, Timer_SpitterShoved, victim);
+		// 当Spitter被推后技能马上冷却
 		// zduration = time + zerotime;
 		// SetInfectedAbilityTimer(victim, zerotime, zerotime);
-		// SetEntPropFloat(victim, Prop_Send, "m_nextActivationTimer", 0.5, 0);
-		// SetEntPropFloat(victim, Prop_Send, "m_nextActivationTimer", GetGameTime() + 0.5, 1);
-		// PrintToChatAll("%N的cd已重置");
+		// PrintToChatAll("%N的cd已重置", victim);
 	} else if (zombieclass == L4D2Infected_Jockey) {
-		SDKHooks_TakeDamage(victim, client, client, 1.0);
-		// 当Jocker被幸存者推中后会重设主技能冷却时间为1.5秒
+		CreateTimer(0.1, Timer_JockeyShoved, victim);
+		//当Jocker被幸存者推中后会重设主技能冷却时间为1.5秒
 		// zduration = time + jockeyTime;
 		// SetInfectedAbilityTimer(victim, zduration, jockeyTime);
-		// PrintToChatAll("%N的猴子cd已重置");
+		// PrintToChatAll("%N的猴子cd已重置", victim);
 	}
 
 	return Plugin_Continue;
-}*/
+}
+
+public Action Timer_SpitterShoved(Handle timer, any client)
+{
+	float time = GetGameTime();
+	float zerotime = 0.4;
+	float zduration = time + zerotime;
+	SetInfectedAbilityTimer(client, zduration, zerotime);
+	// PrintToChatAll("%N的cd已重置", client);
+	return Plugin_Continue;
+}
+
+public Action Timer_JockeyShoved(Handle timer, any client)
+{
+	float time = GetGameTime();
+	float jockeyTime = 1.4;
+	float jduration = time + jockeyTime;
+	SetInfectedAbilityTimer(client, jduration, jockeyTime);
+	// PrintToChatAll("%N的猴子cd已重置", client);
+	return Plugin_Continue;
+}

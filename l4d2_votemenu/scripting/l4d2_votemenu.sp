@@ -69,7 +69,7 @@ int
 bool
 	g_cvarReady,
 	g_bDebug,
-	g_bVoteEnable = false,
+	g_bVoteEnable[MAXPLAYERS + 1],
 	g_cvarGiveHP,
 	g_cvarGivePills,
 	g_cvarChangeSlots,
@@ -205,6 +205,9 @@ public void OnPluginStart()
 
 public void OnClientPostAdminCheck(int client)
 {
+	if(IsFakeClient(client)) return;
+	g_bVoteEnable[client] = true;
+
 	if(!g_bDebug || IsFakeClient(client) || CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
 	{
 		return;
@@ -214,6 +217,12 @@ public void OnClientPostAdminCheck(int client)
 	{
 		KickClient(client, "服务器调试中...");
 	}
+}
+
+public void OnClientDisconnect(int client)
+{
+	if(IsFakeClient(client)) return;
+	g_bVoteEnable[client] = false;
 }
 
 public void RoundStart_Event(Event hEvent, const char[] eName, bool dontBroadcast)
@@ -236,15 +245,23 @@ public Action Timer_ChangeVoteNextMap(Handle timer, any data){
 	return Plugin_Handled;
 }
 
-public void OnMapStart()
-{
-	g_bVoteEnable = true;
-}
+// public void OnMapStart()
+// {
+	// for(int i = 1; i < MaxClients; i ++)
+	// {
+	// 	if(IsFakeClient(i)) continue;
+	// 	g_bVoteEnable[i] = true;
+	// }
+// }
 
-public void OnMapEnd()
-{
-	g_bVoteEnable = false;
-}
+// public void OnMapEnd()
+// {
+// 	for(int i = 1; i < MaxClients; i ++)
+// 	{
+// 		if(IsFakeClient(i)) continue;
+// 		g_bVoteEnable[i] = false;
+// 	}
+// }
 
 public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 {
@@ -281,7 +298,7 @@ public Action Command_Votes(int iClient, int iArgs)
 		return Plugin_Handled;
 	}
 
-	if (!g_bVoteEnable)
+	if (!g_bVoteEnable[iClient])
 	{
 		CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}You can not start after a vote at once.");
 		return Plugin_Handled;
@@ -1245,8 +1262,8 @@ bool StartVote(int iClient)
 		return false;
 	}
 
-	g_bVoteEnable = false;
-	CreateTimer(sm_votemenu_timedelay.FloatValue, Timer_VoteDelay, _);
+	g_bVoteEnable[iClient] = false;
+	CreateTimer(sm_votemenu_timedelay.FloatValue, Timer_VoteDelay, iClient);
 
 	if (!IsBuiltinVoteInProgress()) {
 		int iNumPlayers = 0;
@@ -1461,7 +1478,7 @@ public Action ExecVoteRes(Handle timer, any client)
 
 public Action Timer_VoteDelay(Handle timer, any client)
 {
-	g_bVoteEnable = true;
+	g_bVoteEnable[client] = true;
 	return Plugin_Continue;
 }
 
