@@ -3,7 +3,7 @@
 #include <left4dhooks>
 #include <l4d2util>
 
-#define UNRESERVE_VERSION "1.0"
+#define UNRESERVE_VERSION "1.1"
 
 Handle
 	cvarMvMaxPlayers,
@@ -17,7 +17,7 @@ public Plugin:myinfo =
 	name = "L4D1/2 修改旁观后后删除大厅",
 	author = "Lin",
 	description = "修改旁观后删除大厅信息",
-	version = "1.0",
+	version = "UNRESERVE_VERSION",
 }
 
 public OnPluginStart()
@@ -37,7 +37,7 @@ public ConVarChange(Handle:convar, const String:oldValue[], const String:newValu
 	MaxSlots = GetConVarInt(cvarMvMaxPlayers);
 	SvLobby = GetConVarInt(cvarSvLobby);
 
-	if(MaxSlots > 8 && SvLobby != 0)
+	if(MaxSlots != 8 && SvLobby != 0)
     {
 		SetConVarInt(FindConVar("sv_allow_lobby_connect_only"), 0);
 		L4D_LobbyUnreserve();
