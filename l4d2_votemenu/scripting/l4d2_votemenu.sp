@@ -845,6 +845,11 @@ void SelectPlayerMenu(int iClient)
 	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select pleyer menu" ,iClient);
 	vMenu.SetTitle(sBuffer);
 
+	if(g_voteType == view_as<voteType>(kick))
+	{
+		vMenu.AddItem("kickspecs", "踢出所有旁观");
+	}
+
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && !IsFakeClient(i) && iClient != i)
@@ -870,6 +875,13 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
 	} else if (action == MenuAction_Select) {
 		char item[32];
 		menu.GetItem(param2, item, sizeof(item));
+
+		if(strcmp(item, "kickspecs") == 0)
+		{
+			FakeClientCommand(param1, "sm_kickspecs");
+			return 0;
+		}
+		
 		int target = GetClientOfUserId(StringToInt(item));
 		
 		AdminId clientAdmin = GetUserAdmin(param1);

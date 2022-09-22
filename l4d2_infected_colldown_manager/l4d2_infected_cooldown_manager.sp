@@ -35,7 +35,7 @@ public Plugin myinfo = {
 	name = "特感冷却控制器",
 	author = "Kevonlin",
 	description = "调整特感冷却时间",
-	version = "1.1",
+	version = "1.2",
 	url = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -182,7 +182,7 @@ public Action L4D_OnShovedBySurvivor(int client, int victim, const float vecDir[
 	// if (!g_bCvarEnable) return Plugin_Continue;
 
 	// int victim = GetClientOfUserId(hEvent.GetInt("userid"));	
-	PrintToChatAll("%N被推", victim);
+	// PrintToChatAll("%N被推", victim);
 	if (!GetInfectedAbilityTimer(victim, timestamp[victim], duration[victim])) return Plugin_Continue;
 
 	int zombieclass = GetInfectedClass(victim);
