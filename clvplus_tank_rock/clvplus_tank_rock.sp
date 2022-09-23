@@ -86,8 +86,7 @@ public Action Hook_OnTakeDamage(int iVictim, int &iAttacker, int &iInflictor, fl
 	if(!IsPlayerUseSmg(iAttacker)) return Plugin_Continue;
 
 	//2.机枪修改伤害
-	fDamage = g_fRockAttack;
-	rockHealth -= fDamage;
+	rockHealth -= g_fRockAttack;
 
 	#if DEBUG
 	PrintToChatAll("rockHealth:%f", rockHealth);
