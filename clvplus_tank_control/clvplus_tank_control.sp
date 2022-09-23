@@ -13,14 +13,14 @@
 #define IS_INFECTED(%1)         (GetClientTeam(%1) == 3)
 #define IS_VALID_INGAME(%1)     (IS_VALID_CLIENT(%1) && IsClientInGame(%1))
 #define IS_VALID_INFECTED(%1)   (IS_VALID_INGAME(%1) && IS_INFECTED(%1))
-#define IS_VALID_CASTER(%1)     (IS_VALID_INGAME(%1) && casterSystemAvailable && IsClientCaster(%1))
+// #define IS_VALID_CASTER(%1)     (IS_VALID_INGAME(%1) && casterSystemAvailable && IsClientCaster(%1))
 
 ArrayList h_whosHadTank;
 char queuedTankSteamId[64];
 ConVar 
     // hTankPrint, 
     hTankDebug;
-bool casterSystemAvailable;
+// bool casterSystemAvailable;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
@@ -81,29 +81,29 @@ public void OnPluginStart()
     RegAdminCmd("sm_givetank", GiveTank_Cmd, ADMFLAG_SLAY, "Gives the tank to a selected player");
 
     // Register the boss commands
-    RegConsoleCmd("sm_tank", Tank_Cmd, "Shows who is becoming the tank.");
-    RegConsoleCmd("sm_boss", Tank_Cmd, "Shows who is becoming the tank.");
-    RegConsoleCmd("sm_witch", Tank_Cmd, "Shows who is becoming the tank.");
+    // RegConsoleCmd("sm_tank", Tank_Cmd, "Shows who is becoming the tank.");
+    // RegConsoleCmd("sm_boss", Tank_Cmd, "Shows who is becoming the tank.");
+    // RegConsoleCmd("sm_witch", Tank_Cmd, "Shows who is becoming the tank.");
     
     // Cvars
     // hTankPrint = CreateConVar("tankcontrol_print_all", "0", "Who gets to see who will become the tank? (0 = Infected, 1 = Everyone)");
     hTankDebug = CreateConVar("tankcontrol_debug", "0", "Whether or not to debug to console");
 }
 
-public void OnAllPluginsLoaded()
-{
-	casterSystemAvailable = LibraryExists("caster_system");
-}
+// public void OnAllPluginsLoaded()
+// {
+// 	casterSystemAvailable = LibraryExists("caster_system");
+// }
 
-public void OnLibraryAdded(const char[] name)
-{
-	if (StrEqual(name, "caster_system")) casterSystemAvailable = true;
-}
+// public void OnLibraryAdded(const char[] name)
+// {
+// 	if (StrEqual(name, "caster_system")) casterSystemAvailable = true;
+// }
 
-public void OnLibraryRemoved(const char[] name)
-{
-	if (StrEqual(name, "caster_system")) casterSystemAvailable = false;
-}
+// public void OnLibraryRemoved(const char[] name)
+// {
+// 	if (StrEqual(name, "caster_system")) casterSystemAvailable = false;
+// }
 
 /*public void OnClientDisconnect(int client) 
 {
@@ -222,35 +222,35 @@ public void TankKilled_Event(Event hEvent, const char[] eName, bool dontBroadcas
  * output to them.
  */
  
-public Action Tank_Cmd(int client, int args)
-{
-    if (!IsClientInGame(client)) 
-      return Plugin_Handled;
+// public Action Tank_Cmd(int client, int args)
+// {
+//     if (!IsClientInGame(client)) 
+//       return Plugin_Handled;
 
-    int tankClientId;
-    char tankClientName[128];
+//     int tankClientId;
+//     char tankClientName[128];
     
-    // Only output if we have a queued tank
-    if (! strcmp(queuedTankSteamId, ""))
-    {
-        return Plugin_Handled;
-    }
+//     // Only output if we have a queued tank
+//     if (! strcmp(queuedTankSteamId, ""))
+//     {
+//         return Plugin_Handled;
+//     }
     
-    tankClientId = getInfectedPlayerBySteamId(queuedTankSteamId);
-    if (tankClientId != -1)
-    {
-        GetClientName(tankClientId, tankClientName, sizeof(tankClientName));
+//     tankClientId = getInfectedPlayerBySteamId(queuedTankSteamId);
+//     if (tankClientId != -1)
+//     {
+//         GetClientName(tankClientId, tankClientName, sizeof(tankClientName));
         
-        // If on infected, print to entire team
-        if (view_as<L4D2Team>(GetClientTeam(client)) == L4D2Team_Infected || (casterSystemAvailable && IsClientCaster(client)))
-        {
-            if (client == tankClientId) CPrintToChat(client, "{red}<{default}Tank Selection{red}> {green}You {default}will become the {red}Tank{default}!");
-            else CPrintToChat(client, "{red}<{default}Tank Selection{red}> {olive}%s {default}will become the {red}Tank!", tankClientName);
-        }
-    }
+//         // If on infected, print to entire team
+//         if (view_as<L4D2Team>(GetClientTeam(client)) == L4D2Team_Infected || (casterSystemAvailable && IsClientCaster(client)))
+//         {
+//             if (client == tankClientId) CPrintToChat(client, "{red}<{default}Tank Selection{red}> {green}You {default}will become the {red}Tank{default}!");
+//             else CPrintToChat(client, "{red}<{default}Tank Selection{red}> {olive}%s {default}will become the {red}Tank!", tankClientName);
+//         }
+//     }
     
-    return Plugin_Handled;
-}
+//     return Plugin_Handled;
+// }
 
 /**
  * Shuffle the tank (randomly give to another player in
