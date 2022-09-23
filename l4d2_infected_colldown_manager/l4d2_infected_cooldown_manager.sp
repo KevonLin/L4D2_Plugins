@@ -35,7 +35,7 @@ public Plugin myinfo = {
 	name = "特感冷却控制器",
 	author = "Kevonlin",
 	description = "调整特感冷却时间",
-	version = "1.2",
+	version = "1.2.1",
 	url = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -96,6 +96,7 @@ public void Event_PlayerRespawning(Event hEvent, const char[] sEventName, bool b
 	int zombieclass = GetInfectedClass(client);
 	if (zombieclass == L4D2Infected_Charger) {
 		isChargerUseAbility[client] = false;
+		fIntervalCount[client] = g_fChargerInterval;
 	}
 }
 
