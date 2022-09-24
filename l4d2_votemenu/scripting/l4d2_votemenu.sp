@@ -399,7 +399,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 				g_voteType = view_as<voteType>(hp);
 				if (StartVote(param1))
 				{
-					LogMessage("Player %N start a give hp vote.", param1);
+					LogMessage("Player [%N] start a give hp vote.", param1);
 					//caller is voting for
 					FakeClientCommand(param1, "Vote Yes");
 				} 
@@ -421,7 +421,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 				g_voteType = view_as<voteType>(pills);
 				if (StartVote(param1))
 				{
-					LogMessage("Player %N start a give pills vote.", param1);
+					LogMessage("Player [%N] start a give pills vote.", param1);
 					//caller is voting for
 					FakeClientCommand(param1, "Vote Yes");
 				} 
@@ -613,7 +613,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a Slots 8 vote.", param1);
+				LogMessage("Player [%N] start a Slots 8 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -627,7 +627,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a Slots 10 vote.", param1);
+				LogMessage("Player [%N] start a Slots 10 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -641,7 +641,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a Slots 12 vote.", param1);
+				LogMessage("Player [%N] start a Slots 12 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -655,7 +655,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a Slots 14 vote.", param1);
+				LogMessage("Player [%N] start a Slots 14 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -669,7 +669,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 		{
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a Slots 16 vote.", param1);
+				LogMessage("Player [%N] start a Slots 16 vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -714,7 +714,7 @@ public int NextMapMenuHandler(Menu menu, MenuAction action, int param1, int para
 
 		if(StartVote(param1))
 		{
-			LogMessage("Player %N starts a vote: change map %s", param1, g_sVoteNextMapName);
+			LogMessage("Player [%N] starts a vote: change next map [%s]", param1, g_sVoteNextMapName);
 			//caller is voting for
 			FakeClientCommand(param1, "Vote Yes");
 		}
@@ -791,7 +791,7 @@ public int ThirdMapMenuHandler(Menu menu, MenuAction action, int param1, int par
 
 		if(StartVote(param1))
 		{
-			LogMessage("Player %N starts a vote: change map %s", param1, g_sVoteCustomMapName);
+			LogMessage("Player [%N] starts a vote: change custom map [%s]", param1, g_sVoteCustomMapName);
 			//caller is voting for
 			FakeClientCommand(param1, "Vote Yes");
 		}
@@ -927,7 +927,7 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
 
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a ban player vote.", param1);
+				LogMessage("Player [%N] start ban player [%N] vote.", param1, target);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 				FakeClientCommand(target, "Vote No");
@@ -950,7 +950,7 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
 
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a kick player vote.", param1);
+				LogMessage("Player [%N] start kick player [%N] vote.", param1, target);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 				FakeClientCommand(target, "Vote No");
@@ -980,7 +980,7 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
 
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a mute player vote.", param1);
+				LogMessage("Player [%N] start mute player [%N] vote.", param1, target);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 				FakeClientCommand(target, "Vote No");
@@ -1035,7 +1035,7 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a enbale addons vote.", param1);
+				LogMessage("Player [%N] start enbale addons vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -1056,7 +1056,7 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a disable addons vote.", param1);
+				LogMessage("Player [%N] start disable addons vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -1110,7 +1110,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a enbale ready plugin vote.", param1);
+				LogMessage("Player [%N] start enbale ready plugin vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -1131,7 +1131,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 
 			if (StartVote(param1))
 			{
-				LogMessage("Player %N start a disable ready plugin vote.", param1);
+				LogMessage("Player [%N] start disable ready plugin vote.", param1);
 				//caller is voting for
 				FakeClientCommand(param1, "Vote Yes");
 			} 
@@ -1215,7 +1215,7 @@ public int ConfigsMenuHandler(Menu menu, MenuAction action, int param1, int para
 		if (StartMatchVote(param1, sBuffer)) {
 			strcopy(g_sCfg, sizeof(g_sCfg), sInfo);
 			g_voteType = view_as<voteType>(config);
-			LogMessage("Player %N start a config vote.", param1);
+			LogMessage("Player [%N] start a config [%s] vote.", param1, g_sCfg);
 			//caller is voting for
 			FakeClientCommand(param1, "Vote Yes");
 		} else {
@@ -1336,15 +1336,15 @@ bool StartVote(int iClient)
 		}
 		else if (g_voteType == view_as<voteType>(ban))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "Ban Player %N 30min", g_selectClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "Ban Player [%N] 30min", g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(kick))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "Kick Player %N", g_selectClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "Kick Player [%N]", g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(mute))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "Mute Player %N 30min", g_selectClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "Mute Player [%N] 30min", g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(addons))
 		{
