@@ -132,38 +132,28 @@ public void Event_PlayerHurt(Event hEvent, const char[] sEventName, bool bDontBr
 			finaltime[attacker] = fIntervalCount[attacker] - g_fChangerAttackDelay; 
 			duration[attacker] = time + finaltime[attacker];
 			
-			if (isChargerUseAbility[attacker] && (duration[attacker] + g_fChangerAttackDelay >= timestamp[attacker])) {
+			if (isChargerUseAbility[attacker] && (duration[attacker] + fIntervalCount[attacker] >= timestamp[attacker])) {
 				SetInfectedAbilityTimer(attacker, duration[attacker], finaltime[attacker]);
 			} else {
-				isChargerUseAbility[attacker] = false;
+				if(isChargerUseAbility[attacker]){
+					isChargerUseAbility[attacker] = false;
+				}
 				SetInfectedAbilityTimer(attacker, zduration, zerotime);
 			}
 
 			if (fIntervalCount[attacker] > g_fChangerAttackDelay) {
 				fIntervalCount[attacker] -= g_fChangerAttackDelay;
 			} else {
+				if(isChargerUseAbility[attacker]){
+					isChargerUseAbility[attacker] = false;
+				}
 				fIntervalCount[attacker] = g_fChargerInterval;
 			}
 		} else if (zombieclass == L4D2Infected_Smoker) {
 			//Smoker攻击后立即刷新技能
 			SetInfectedAbilityTimer(attacker, zduration, zerotime);
 		}
-	} /*else if (GetClientTeam(victim) == L4D2Team_Infected && GetClientTeam(attacker) == L4D2Team_Survivor) {
-		// 特感被推
-		PrintToChatAll("攻击者是%N", attacker);
-		PrintToChatAll("受害者是%N", victim);
-		int zombieclass = GetInfectedClass(victim);
-		if (zombieclass == L4D2Infected_Tank) {
-			return; // We don't care about tank damage
-		}
-		if (zombieclass == L4D2Infected_Spitter) {
-			// 当Spitter被推后技能马上冷却
-			SetInfectedAbilityTimer(attacker, zduration, zerotime);
-		} else if (zombieclass == L4D2Infected_Jockey) {
-			// 当Jocker被幸存者推中后会重设主技能冷却时间为1.5秒
-			SetInfectedAbilityTimer(attacker, jduration, jockeytime);
-		}
-	}*/
+	} 
 }
 
 public void Event_ChargerChargeStart(Event hEvent, const char[] sEventName, bool bDontBroadcast) {
@@ -180,10 +170,6 @@ public void Event_ChargerChargeStart(Event hEvent, const char[] sEventName, bool
 }
 
 public Action L4D_OnShovedBySurvivor(int client, int victim, const float vecDir[3]) {
-	// if (!g_bCvarEnable) return Plugin_Continue;
-
-	// int victim = GetClientOfUserId(hEvent.GetInt("userid"));	
-	// PrintToChatAll("%N被推", victim);
 	if (!GetInfectedAbilityTimer(victim, timestamp[victim], duration[victim])) return Plugin_Continue;
 
 	int zombieclass = GetInfectedClass(victim);
@@ -191,22 +177,10 @@ public Action L4D_OnShovedBySurvivor(int client, int victim, const float vecDir[
 		return Plugin_Continue; // We don't care about tank damage
 	}
 
-	// float time = GetGameTime();
-	// float zerotime = 0.5;
-	// float jockeyTime = 1.5;
-	// float zduration;
 	if (zombieclass == L4D2Infected_Spitter) {
 		CreateTimer(0.1, Timer_SpitterShoved, victim);
-		// 当Spitter被推后技能马上冷却
-		// zduration = time + zerotime;
-		// SetInfectedAbilityTimer(victim, zerotime, zerotime);
-		// PrintToChatAll("%N的cd已重置", victim);
 	} else if (zombieclass == L4D2Infected_Jockey) {
 		CreateTimer(0.1, Timer_JockeyShoved, victim);
-		//当Jocker被幸存者推中后会重设主技能冷却时间为1.5秒
-		// zduration = time + jockeyTime;
-		// SetInfectedAbilityTimer(victim, zduration, jockeyTime);
-		// PrintToChatAll("%N的猴子cd已重置", victim);
 	}
 
 	return Plugin_Continue;
