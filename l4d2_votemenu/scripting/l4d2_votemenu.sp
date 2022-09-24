@@ -39,7 +39,7 @@ ConVar
 	sm_votemenu_mute,
 	sm_votemenu_toggleaddons,
 	sm_votemenu_toggleready,
-	sm_votemenu_changeconfigs,
+	// sm_votemenu_changeconfigs,
 	sm_match_player_limit,
 	l4d_votemenu_debug,
 	cvarMvMaxPlayers,
@@ -47,7 +47,7 @@ ConVar
 	cvarReady;
 
 char
-	g_sCfg[32],
+	// g_sCfg[32],
 	g_sSlots[64],
 	g_customMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
 	g_customMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
@@ -105,7 +105,7 @@ public Plugin myinfo =
 	name = "Vote Menu",
 	author = "Kevonlin",
 	description = "Vote Menu.",
-	version = "2.0",
+	version = "2.1",
 	url = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -153,7 +153,7 @@ public void OnPluginStart()
 	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "1", "Mute Enable");
 	sm_votemenu_toggleaddons = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
 	sm_votemenu_toggleready = CreateConVar("sm_votemenu_toggleready", "1", "Toggle ready Enable");
-	sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
+	// sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
 	sm_match_player_limit = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
 	l4d_votemenu_debug = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
 
@@ -171,7 +171,7 @@ public void OnPluginStart()
 	g_cvarMute = GetConVarBool(sm_votemenu_mute);
 	g_cvarToggleAddons = GetConVarBool(sm_votemenu_toggleaddons);
 	g_cvarToggleReady = GetConVarBool(sm_votemenu_toggleready);
-	g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
+	// g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
 	g_bDebug = GetConVarBool(l4d_votemenu_debug);
 	g_cvarAddons = GetConVarInt(cvarAddons);
 
@@ -188,7 +188,7 @@ public void OnPluginStart()
 	HookConVarChange(sm_votemenu_mute, CVarChanged);	
 	HookConVarChange(sm_votemenu_toggleaddons, CVarChanged);
 	HookConVarChange(sm_votemenu_toggleready, CVarChanged);	
-	HookConVarChange(sm_votemenu_changeconfigs, CVarChanged);	
+	// HookConVarChange(sm_votemenu_changeconfigs, CVarChanged);	
 	HookConVarChange(cvarAddons, CVarChanged);
 	
 	if (cvarReady != INVALID_HANDLE)
@@ -279,7 +279,7 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 	g_cvarMute = GetConVarBool(sm_votemenu_mute);
 	g_cvarToggleAddons = GetConVarBool(sm_votemenu_toggleaddons);
 	g_cvarToggleReady = GetConVarBool(sm_votemenu_toggleready);
-	g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
+	// g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
 }
 
 public Action Command_Votes(int iClient, int iArgs)
@@ -365,11 +365,11 @@ void BuildVoteMenu(int iClient)
 		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready" ,iClient);
 		vMenu.AddItem("toggleready", sBuffer);
 	}
-	if (g_cvarChangeConfigs)
-	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change config" ,iClient);
-		vMenu.AddItem("changeconfig", sBuffer);
-	}
+	// if (g_cvarChangeConfigs)
+	// {
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change config" ,iClient);
+	vMenu.AddItem("changeconfig", sBuffer);
+	// }
 
 	vMenu.ExitButton = true;
 	vMenu.Display(iClient, 30);
@@ -533,12 +533,12 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			{
 				if (!g_cvarChangeConfigs)
 				{
-					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-					BuildVoteMenu(param1);
+					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}Use !rmatch and !match to load a config.");
+					// BuildVoteMenu(param1);
 					return 0;
 				}
 
-				MatchModeMenu(param1);
+				// MatchModeMenu(param1);
 			}
 		}	
 	}
@@ -887,30 +887,33 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
 		AdminId clientAdmin = GetUserAdmin(param1);
 		AdminId targetAdmin = GetUserAdmin(target);
 		
-		if (!CanAdminTarget(clientAdmin, targetAdmin))
+		if (clientAdmin != INVALID_ADMIN_ID || targetAdmin != INVALID_ADMIN_ID)
 		{
-			switch (g_voteType)
+			if (!CanAdminTarget(clientAdmin, targetAdmin))
 			{
-				case (view_as<voteType>(ban)):
+				switch (g_voteType)
 				{
-					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not ban Admins.", target);
-					CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were banned by {blue}%N", param1);
-				}
+					case (view_as<voteType>(ban)):
+					{
+						CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not ban Admins.", target);
+						CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were banned by {blue}%N", param1);
+					}
 
-				case (view_as<voteType>(kick)):
-				{
-					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not kick Admins.", target);
-					CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were voted out by {blue}%N", param1);
-				}
+					case (view_as<voteType>(kick)):
+					{
+						CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not kick Admins.", target);
+						CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were voted out by {blue}%N", param1);
+					}
 
-				case (view_as<voteType>(mute)):
-				{
-					CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not mute Admins.", target);
-					CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were muted by {blue}%N", param1);
+					case (view_as<voteType>(mute)):
+					{
+						CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not mute Admins.", target);
+						CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were muted by {blue}%N", param1);
+					}
 				}
+				// SelectPlayerMenu(param1);
+				return 0;
 			}
-			// SelectPlayerMenu(param1);
-			return 0;
 		}
 		
 		g_selectClient = target;
@@ -1144,7 +1147,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 	}
 	return 0;
 }
-
+/*
 void MatchModeMenu(int iClient)
 {
 	Menu hMenu = new Menu(MatchModeMenuHandler);
@@ -1266,7 +1269,7 @@ bool StartMatchVote(int iClient, const char[] sCfgName)
 	CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}Match vote cannot be started now.");
 	return false;
 }
-
+*/
 bool StartVote(int iClient)
 {
 	if (GetClientTeam(iClient) <= L4D2Team_Spectator) {
@@ -1476,11 +1479,11 @@ public Action ExecVoteRes(Handle timer, any client)
 			LogMessage("Vote to toggle ready pass");	
 		}
 
-		case (view_as<voteType>(config)):
-		{
-			LoadConfig();
-			LogMessage("Vote to change [%s] config pass", g_sCfg);	
-		}
+		// case (view_as<voteType>(config)):
+		// {
+		// 	LoadConfig();
+		// 	LogMessage("Vote to change [%s] config pass", g_sCfg);	
+		// }
 	}
 
 	g_voteType = view_as<voteType>(None);
@@ -1636,14 +1639,22 @@ public Action Timer_ChangeCustomMapDelay(Handle timer, any client)
 
 	return Plugin_Continue;
 }
-
+/*
 void LoadConfig()
 {
 	if (LGO_IsMatchModeLoaded()) {
 		ServerCommand("sm_resetmatch");
 	}
 	ServerCommand("sm_forcematch %s", g_sCfg);
+	// CreateTimer(3.0, Timer_ChangeConfigDelay, _);
 }
+*/
+// public Action Timer_ChangeConfigDelay(Handle timer, any client)
+// {
+// 	ServerCommand("sm_forcematch %s", g_sCfg);
+
+// 	return Plugin_Continue;
+// }
 
 bool HasPills(int iClient)
 {
