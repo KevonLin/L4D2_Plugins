@@ -44,31 +44,31 @@
 
     "Slots 8"
     {
-        "chi"       "更改最大人数至8人"
+        "chi"       "更改服务器最大人数至8人"
         "en"        "Limit slots to 8"
     }
 
     "Slots 10"
     {
-        "chi"       "更改最大人数至10人"
+        "chi"       "更改服务器最大人数至10人"
         "en"        "Limit slots to 12"
     }
 
     "Slots 12"
     {
-        "chi"       "更改最大人数至12人"
+        "chi"       "更改服务器最大人数至12人"
         "en"        "Limit slots to 12"
     }
 
     "Slots 14"
     {
-        "chi"       "更改最大人数至14人"
+        "chi"       "更改服务器最大人数至14人"
         "en"        "Limit slots to 12"
     }
 
     "Slots 16"
     {
-        "chi"       "更改最大人数至16人"
+        "chi"       "更改服务器最大人数至16人"
         "en"        "Limit slots to 16"
     }
 
@@ -98,13 +98,13 @@
 
     "Toggle addons"
     {
-        "chi"       "启用/禁用 Mod"
+        "chi"       "开启/禁用 Mod"
         "en"        "Enable/Disable Addons"
     }
 
     "Toggle ready"
     {
-        "chi"       "启用/禁用 Ready"
+        "chi"       "开启/禁用 Ready"
         "en"        "Enable/Disable Ready"
     }
 
@@ -140,7 +140,7 @@
 
     "Disable addons"
     {
-        "chi"       "禁用 Mod"
+        "chi"       "禁止 Mod"
         "en"        "Disable Mod"
     }
 
@@ -152,7 +152,7 @@
 
     "Disable ready"
     {
-        "chi"       "禁用 Ready"
+        "chi"       "禁止 Ready"
         "en"        "Disable Ready"
     }
 
