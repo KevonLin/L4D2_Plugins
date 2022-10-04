@@ -7,6 +7,10 @@
 #define L4D2UTIL_STOCKS_ONLY 1
 #include <l4d2util>
 
+#undef REQUIRE_PLUGIN
+#include <confogl>
+#define REQUIRE_PLUGIN
+
 #define MAXUIDSIZE 64
 #define RETRYTIME 3.0
 
@@ -15,10 +19,13 @@
 
 ConVar
 	g_cvarEnable,
-	g_cvarNowMaxUID;
+	g_cvarNowMaxUID,
+	cvarReadyUpCfgName;
+
 bool
 	// isStartInGame[MAXPLAYERS + 1],
-	g_bCvarEnable;
+	g_bCvarEnable,
+	IsConfoglAvailable;
 
 int
 	g_icvarNowMaxUID,
@@ -33,7 +40,8 @@ float
 	PlayerGameTime[MAXPLAYERS + 1];
 
 char
-	logFile[256];
+	logFile[256],
+	g_sCvarCfgName[64];
 
 public Plugin myinfo = {
 	name = "UID系统",
@@ -78,6 +86,20 @@ public void OnPluginStart() {
 	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Pre);
 
 	// SetMaxUID();
+	IsConfoglAvailable = LibraryExists("confogl");
+}
+
+public void OnConfigsExecuted()
+{
+	IsConfoglAvailable = LibraryExists("confogl");
+	if (IsConfoglAvailable)
+	{
+		cvarReadyUpCfgName = FindConVar("l4d_ready_cfg_name");
+		if(cvarReadyUpCfgName != INVALID_HANDLE)
+			GetConVarString(cvarReadyUpCfgName, g_sCvarCfgName, sizeof(g_sCvarCfgName));
+		else
+			g_sCvarCfgName = "未加载插件";
+	}
 }
 
 void GetCvar() {
@@ -265,11 +287,16 @@ void ShowWelcomePanel(int client) {
 	FormatEx(sBuffer, sizeof(sBuffer), "QQ群:643157074");
 	sPanel.DrawText(sBuffer);
 	sPanel.DrawText(" ");
-	FormatEx(sBuffer, sizeof(sBuffer), "游戏默认插件:CLVPlus");
+	FormatEx(sBuffer, sizeof(sBuffer), "当前模式:%s", g_sCvarCfgName);
 	sPanel.DrawText(sBuffer);
 	sPanel.DrawText(" ");
 	FormatEx(sBuffer, sizeof(sBuffer), "药抗模式建议游戏时长:400小时");
 	sPanel.DrawText(sBuffer);
+	if (!LGO_IsMatchModeLoaded()) {
+		sPanel.DrawText(" ");
+		FormatEx(sBuffer, sizeof(sBuffer), "使用!match加载插件");
+		sPanel.DrawText(sBuffer);
+	}
 
 	sPanel.Send(client, WelcomPanelHundler, 30);
 }
@@ -666,10 +693,10 @@ void CreateNewUid(int client) {
 }
 
 int GetCreateUID() {
-	SetConVarInt(g_cvarNowMaxUID, ++g_icvarNowMaxUID, true, true);
-	if (IsUIDUsed(g_icvarNowMaxUID)) {
-		GetCreateUID();
+	while (IsUIDUsed(g_icvarNowMaxUID)) {
+		g_icvarNowMaxUID++;
 	}
+	SetConVarInt(g_cvarNowMaxUID, g_icvarNowMaxUID, true, true);
 	return g_icvarNowMaxUID;
 }
 
