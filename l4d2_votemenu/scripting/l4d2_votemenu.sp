@@ -69,6 +69,7 @@ int
 	g_selectClient;
 
 bool
+	IsConfoglAvailable,
 	g_cvarReady,
 	g_bDebug,
 	g_bVoteEnable[MAXPLAYERS + 1],
@@ -163,10 +164,15 @@ public void OnPluginStart()
 	sm_match_player_limit = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
 	l4d_votemenu_debug = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
 
+	IsConfoglAvailable = LibraryExists("confogl");
+
 	cvarMvMaxPlayers = FindConVar("sv_maxplayers");
 	cvarAddons = FindConVar("l4d2_addons_eclipse");
-	cvarReady = FindConVar("l4d_ready_enabled");
-	cvarLerpFilter = FindConVar("sm_filter_kick_enable");
+	if(IsConfoglAvailable)
+	{
+		cvarReady = FindConVar("l4d_ready_enabled");
+		cvarLerpFilter = FindConVar("sm_filter_kick_enable");
+	}
 
 	g_cvarGiveHP = GetConVarBool(sm_votemenu_givehp);
 	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
@@ -183,11 +189,16 @@ public void OnPluginStart()
 	g_bDebug = GetConVarBool(l4d_votemenu_debug);
 	g_cvarAddons = GetConVarInt(cvarAddons);
 
-	if (cvarReady != INVALID_HANDLE)
+	if(IsConfoglAvailable)
+	{
 		g_cvarReady = GetConVarBool(cvarReady);
-
-	if (cvarLerpFilter != INVALID_HANDLE)
 		g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
+	}
+	// if (cvarReady != INVALID_HANDLE)
+	// 	g_cvarReady = GetConVarBool(cvarReady);
+
+	// if (cvarLerpFilter != INVALID_HANDLE)
+	// 	g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
 
 	HookConVarChange(sm_votemenu_givehp, CVarChanged);
 	HookConVarChange(sm_votemenu_pills, CVarChanged);	
@@ -198,11 +209,17 @@ public void OnPluginStart()
 	HookConVarChange(sm_votemenu_kick, CVarChanged);
 	HookConVarChange(sm_votemenu_mute, CVarChanged);	
 	HookConVarChange(sm_votemenu_toggleaddons, CVarChanged);
-	if (cvarReady != INVALID_HANDLE)
-		HookConVarChange(sm_votemenu_toggleready, CVarChanged);	
-	// HookConVarChange(sm_votemenu_changeconfigs, CVarChanged);	
+	// if (cvarReady != INVALID_HANDLE)
+	// 	HookConVarChange(sm_votemenu_toggleready, CVarChanged);	
 	HookConVarChange(cvarAddons, CVarChanged);
-	HookConVarChange(sm_votemenu_togglelerpfilter, CVarChanged);	
+	HookConVarChange(sm_votemenu_togglelerpfilter, CVarChanged);
+	// if (cvarLerpFilter != INVALID_HANDLE)
+	// 	HookConVarChange(cvarLerpFilter, CVarChanged);	
+	if(IsConfoglAvailable)
+	{
+		HookConVarChange(sm_votemenu_toggleready, CVarChanged);	
+		HookConVarChange(cvarLerpFilter, CVarChanged);
+	}
 	
 	HookEvent("round_start", RoundStart_Event, EventHookMode_PostNoCopy);
 	HookEvent("round_end", RoundEnd_Event, EventHookMode_PostNoCopy);
@@ -210,7 +227,13 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_votemenu", Command_Votes, "Open vote menu.");
 	RegConsoleCmd("sm_votes", Command_Votes, "Open vote menu.");
 
+
 	AutoExecConfig(true, "l4d2_votemenu");
+}
+
+public void OnConfigsExecuted()
+{
+	IsConfoglAvailable = LibraryExists("confogl");
 }
 
 public void OnClientPostAdminCheck(int client)
@@ -275,9 +298,18 @@ public Action Timer_ChangeVoteNextMap(Handle timer, any data){
 
 public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 {
+	IsConfoglAvailable = LibraryExists("confogl");
+
 	g_cvarAddons = GetConVarInt(cvarAddons);
-	if (cvarReady != INVALID_HANDLE)
+	if (IsConfoglAvailable)
+	{
 		g_cvarReady = GetConVarBool(cvarReady);
+		g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
+	}
+	// if (cvarReady != INVALID_HANDLE)
+	// 	g_cvarReady = GetConVarBool(cvarReady);
+	// if (cvarLerpFilter != INVALID_HANDLE)
+	// 	g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
 
 	g_cvarGiveHP = GetConVarBool(sm_votemenu_givehp);
 	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
