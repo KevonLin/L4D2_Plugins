@@ -2,7 +2,6 @@
 #pragma newdecls required
 
 #include <sourcemod>
-#include <colors>
 
 ConVar
 	cVarLFEnable,
@@ -102,7 +101,7 @@ public Action Timer_KickDelay(Handle timer, int client)
 	if(GetLerpTime(client) > g_fCvarLerpFilter)
 	{
 		KickClient(client, "你被认定为新手玩家");
-		CPrintToChatAll("[LF] %N 被踢出,原因:被认定为新手玩家");
+		PrintToChatAll("[LF] %N 被踢出,原因:被认定为新手玩家", client);
 	}
 	return Plugin_Handled;
 }
@@ -175,7 +174,7 @@ float clamp(float inc, float low, float high)
 
 bool IsValidPlayer(int client) {
 	if ((client < 1) || (client > MaxClients)) return false;
-	if (!IsClientConnected(client)) return false;
+	// if (!IsClientConnected(client)) return false;
 	if (IsFakeClient(client)) return false;
 	return true;
 }
