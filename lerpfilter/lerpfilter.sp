@@ -68,6 +68,8 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 
 public void OnClientPostAdminCheck(int client)
 {
+	if(!g_bCvarLFEnable) return;
+
 	if(!IsValidPlayer(client)) return;
 
 	if(CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
@@ -80,31 +82,28 @@ public void OnClientPostAdminCheck(int client)
 		return;
 	}
 
-	if(GetLerpTime(client) <= g_fCvarLerpFilter)
+	if(GetLerpTime(client) > g_fCvarLerpFilter)
 	{
-		return;
+		// CPrintToChatAll("{blue}[{default}LF{blue}] {default}%N {defalut}被认定为新手玩家", client);
+
+		PrintToChatAll("[LF] %N 被认定为新手玩家", client);
+		// CPrintToChat(client, "{blue}[{defalut}LF{blue}] {defalut}根据你的Lerp你被认定为新手玩家");
+		// CPrintToChat(client, "{blue}[{defalut}LF{blue}] {defalut}为了保护你的安全,{blue}30s{defalut}后你将被踢出服务器");
+		PrintToChat(client, "[LF] 根据你的Lerp你被认定为新手玩家");
+		PrintToChat(client, "[LF] 为了保护你的安全,30s后你将被踢出服务器");
+		
+		CreateTimer(30.0, Timer_KickDelay, client);
 	}
-
-	// CPrintToChatAll("{blue}[{default}LF{blue}] {default}%N {defalut}被认定为新手玩家", client);
-	if(!g_bCvarLFEnable) return;
-
-	PrintToChatAll("[LF] %N 被认定为新手玩家", client);
-	// CPrintToChat(client, "{blue}[{defalut}LF{blue}] {defalut}根据你的Lerp你被认定为新手玩家");
-	// CPrintToChat(client, "{blue}[{defalut}LF{blue}] {defalut}为了保护你的安全,{blue}30s{defalut}后你将被踢出服务器");
-	PrintToChat(client, "[LF] 根据你的Lerp你被认定为新手玩家");
-	PrintToChat(client, "[LF] 为了保护你的安全,30s后你将被踢出服务器");
-	
-	CreateTimer(30.0, Timer_KickDelay, client);
 }
 
 public Action Timer_KickDelay(Handle timer, int client)
 {
 	if(!IsValidPlayer(client)) return Plugin_Handled;
-	if(GetLerpTime(client) <= g_fCvarLerpFilter)
+	if(GetLerpTime(client) > g_fCvarLerpFilter)
 	{
-		return Plugin_Handled;
+		KickClient(client, "你被认定为新手玩家");
+		CPrintToChatAll("[LF] %N 被踢出,原因:被认定为新手玩家");
 	}
-	KickClient(client, "你被认定为新手玩家");
 	return Plugin_Handled;
 }
 
