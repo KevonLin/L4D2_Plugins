@@ -98,6 +98,7 @@ public void OnClientPostAdminCheck(int client)
 public Action Timer_KickDelay(Handle timer, int client)
 {
 	if(!IsValidPlayer(client)) return Plugin_Handled;
+	if(!IsClientConnected(client)) return Plugin_Handled;
 	if(GetLerpTime(client) > g_fCvarLerpFilter)
 	{
 		KickClient(client, "你被认定为新手玩家");
