@@ -42,6 +42,7 @@ ConVar
 	sm_votemenu_togglelerpfilter,
 	// sm_votemenu_changeconfigs,
 	sm_match_player_limit,
+	sm_votemenu_nextmap_timer_delay,
 	l4d_votemenu_debug,
 	cvarMvMaxPlayers,
 	cvarAddons,
@@ -86,6 +87,9 @@ bool
 	g_bCvarToggleLerpFilter,
 	g_cvarChangeConfigs,
 	g_bCvarLerpFilter;
+
+float
+	g_cvarNextMapTimerDelay;
 
 enum voteType
 {
@@ -162,6 +166,7 @@ public void OnPluginStart()
 	// sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
 	sm_votemenu_togglelerpfilter = CreateConVar("sm_votemenu_togglelerpfilter", "1", "Toggle lerp filter Enable");
 	sm_match_player_limit = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
+	sm_votemenu_nextmap_timer_delay = CreateConVar("sm_votemenu_nextmap_timer_delay", "8.0", "Change next map timer delay", _, true, 0.0);
 	l4d_votemenu_debug = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
 
 	IsConfoglAvailable = LibraryExists("confogl");
@@ -184,6 +189,7 @@ public void OnPluginStart()
 	g_cvarMute = GetConVarBool(sm_votemenu_mute);
 	g_cvarToggleAddons = GetConVarBool(sm_votemenu_toggleaddons);
 	g_cvarToggleReady = GetConVarBool(sm_votemenu_toggleready);
+	g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
 	// g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
 	g_bCvarToggleLerpFilter = GetConVarBool(sm_votemenu_togglelerpfilter);
 	g_bDebug = GetConVarBool(l4d_votemenu_debug);
@@ -209,6 +215,7 @@ public void OnPluginStart()
 	HookConVarChange(sm_votemenu_kick, CVarChanged);
 	HookConVarChange(sm_votemenu_mute, CVarChanged);	
 	HookConVarChange(sm_votemenu_toggleaddons, CVarChanged);
+	HookConVarChange(sm_votemenu_nextmap_timer_delay, CVarChanged);
 	// if (cvarReady != INVALID_HANDLE)
 	// 	HookConVarChange(sm_votemenu_toggleready, CVarChanged);	
 	HookConVarChange(cvarAddons, CVarChanged);
@@ -265,7 +272,7 @@ public void RoundStart_Event(Event hEvent, const char[] eName, bool dontBroadcas
 
 public void RoundEnd_Event(Event hEvent, const char[] eName, bool dontBroadcast)
 {
-	CreateTimer(10.0, Timer_ChangeVoteNextMap, _);
+	CreateTimer(g_cvarNextMapTimerDelay, Timer_ChangeVoteNextMap, _);
 	return;
 }
 
@@ -323,6 +330,7 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 	g_cvarToggleReady = GetConVarBool(sm_votemenu_toggleready);
 	// g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
 	g_bCvarToggleLerpFilter = GetConVarBool(sm_votemenu_togglelerpfilter);
+	g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
 }
 
 public Action Command_Votes(int iClient, int iArgs)
