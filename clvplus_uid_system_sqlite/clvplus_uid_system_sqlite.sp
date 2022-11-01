@@ -213,8 +213,7 @@ public void OnClientAuthorized(int client) {
 public Action Event_PlayerDisconnect(Event hEvent, const char[] eName, bool dontBroadcast) {
 	int client = GetClientOfUserId(hEvent.GetInt("userid"));
 	if(!(IsValidPlayer(client))) return Plugin_Continue;
-	CPrintToChatAll("玩家 {olive}%N{default}({olive}UID{default}:%d{default}) 离开游戏", client, PlayerUID[client]);
-	PlayerUID[client] = 0;
+	CPrintToChatAll("玩家 {olive}%N{default} 离开游戏", client);
 	return Plugin_Handled;
 }
 
