@@ -18,7 +18,7 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	RegAdminCmd("sm_mpg", SlotsRequest, ADMFLAG_CONVARS);
-	RegServerCmd("mpg", ServerSlotsRequest);
+	RegServerCmd("sm_mpg", ServerSlotsRequest);
 }
 
 public Action SlotsRequest(int client, int args)
@@ -39,7 +39,7 @@ public Action SlotsRequest(int client, int args)
 		}
 		else
 		{
-			CPrintToChatAll("{green}[{blue}Slots{green}] {default}服务器最大人数修改为 {blue}%d{default}.", Int);
+			CPrintToChatAll("{default}[{blue}Slots{default}] {default}服务器最大人数修改为 {blue}%d{default}.", Int);
 			SetConVarInt(FindConVar("sv_maxplayers"), Int);
 		}
 	}
@@ -63,7 +63,7 @@ public Action ServerSlotsRequest(int args)
 		}
 		else
 		{
-			CPrintToChatAll("{green}[{blue}Slots{green}] {default}服务器最大人数修改为 {blue}%d{default}.", Int);
+			CPrintToChatAll("{default}[{blue}Slots{default}] {default}服务器最大人数修改为 {blue}%d{default}.", Int);
 			PrintToServer("[Slots] 服务器最大人数修改为 %d.", Int);
 			SetConVarInt(FindConVar("sv_maxplayers"), Int);
 		}
