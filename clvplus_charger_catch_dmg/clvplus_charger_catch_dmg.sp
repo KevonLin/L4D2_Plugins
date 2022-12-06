@@ -59,7 +59,10 @@ public void ConvarChanged(ConVar convar, const char[] oldValue, const char[] new
 
 public Action EventChargerCarryStart(Event hEvent, const char[] eName, bool dontBroadcast)
 {
+	int attacker = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "victim"));
+
+	CPrintToChatAll("{default}[{blue}!{default}] {olive}%N {default}pounced {olive}%N {default}for {blue}%d damage .", attacker, victim, iDmgChargerCatch);
 
 	int pHealth = GetSurvivorHardHealth(victim);
 	int tHealth = GetSurvivorTempHealth(victim);

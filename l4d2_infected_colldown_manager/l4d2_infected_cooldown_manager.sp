@@ -58,6 +58,7 @@ public void OnPluginStart() {
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_PostNoCopy);
 	HookEvent("charger_charge_start", Event_ChargerChargeStart, EventHookMode_PostNoCopy);
 	HookEvent("respawning", Event_PlayerRespawning, EventHookMode_PostNoCopy);
+	HookEvent("player_death", Event_PlayerDeath, EventHookMode_PostNoCopy);
 	// HookEvent("player_shoved", Event_PlayerShoved, EventHookMode_PostNoCopy);
 }
 
@@ -88,6 +89,19 @@ public void ConvarChanged(ConVar convar, const char[] oldValue, const char[] new
 }
 
 public void Event_PlayerRespawning(Event hEvent, const char[] sEventName, bool bDontBroadcast) {
+	int client = GetClientOfUserId(hEvent.GetInt("userid"));
+	if (client == 0 || !IsClientInGame(client)) {
+		return;
+	}
+
+	int zombieclass = GetInfectedClass(client);
+	if (zombieclass == L4D2Infected_Charger) {
+		isChargerUseAbility[client] = false;
+		fIntervalCount[client] = g_fChargerInterval;
+	}
+}
+
+public void Event_PlayerDeath(Event hEvent, const char[] sEventName, bool bDontBroadcast) {
 	int client = GetClientOfUserId(hEvent.GetInt("userid"));
 	if (client == 0 || !IsClientInGame(client)) {
 		return;
@@ -149,6 +163,7 @@ public void Event_PlayerHurt(Event hEvent, const char[] sEventName, bool bDontBr
 				}
 				fIntervalCount[attacker] = g_fChargerInterval;
 			}
+			//Smoker
 		} else if (zombieclass == L4D2Infected_Smoker) {
 			//Smoker攻击后立即刷新技能
 			SetInfectedAbilityTimer(attacker, zduration, zerotime);
