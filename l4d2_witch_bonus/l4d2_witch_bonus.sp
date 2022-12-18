@@ -31,8 +31,8 @@ public void OnPluginStart()
 	g_hCvarEnabled = CreateConVar("sm_pbonus_enable", "1", "Whether the penalty-bonus system is enabled.", _, true, 0.0, true, 1.0);
 	g_hCvarRecoveryWhitchPermanentealth = CreateConVar("sm_recovery_permanenthealth_witch", "10", "Give hard health when a witch is killed (0 to disable entirely).", _, true, 0.0);
 	g_hCvarRecoveryWhitchTempHealth = CreateConVar("sm_recovery_temphealth_witch", "10", "Give temp healthwhen a witch is killed (0 to disable entirely).", _, true, 0.0);
-	g_hCvarPunishEnable = CreateConVar("sm_punish_enable", "1", "Give temp healthwhen a witch is killed (0 to disable entirely).", _, true, 0.0, true, 1.0);
-	g_hCvarPunishHealth = CreateConVar("sm_puunish_health", "1000", "Give temp healthwhen a witch is killed (0 to disable entirely).", _, true, 0.0);
+	g_hCvarPunishEnable = CreateConVar("sm_punish_enable", "1", "Tank punish enable.", _, true, 0.0, true, 1.0);
+	g_hCvarPunishHealth = CreateConVar("sm_puunish_health", "1000", "Tank punish health.", _, true, 0.0);
 
 	// hook events
 	HookEvent("witch_killed", Event_WitchKilled, EventHookMode_PostNoCopy);
@@ -90,6 +90,8 @@ public void Event_WitchKilled(Event hEvent, const char[] sEventName, bool bDontB
 		// 1）最终实血=最终实血。最终虚血=最大血量-最终实血-1
 		//						最大血量-最终虚血<0时 最终虚血=0
 		// 2）最终实血=最终实血 最终虚血=最终虚血
+		
+		// 调整最终血量防止超过100
 		if (finalPermanentHealth + finalTempHealth >= MaxHP)
 		{
 			finalPermanentHealth = (((finalPermanentHealth) < MaxHP) ? finalPermanentHealth : MaxHP);
@@ -98,21 +100,12 @@ public void Event_WitchKilled(Event hEvent, const char[] sEventName, bool bDontB
 
 		if (!IsClientInGame(client)) return;
 
-		int flags = GetCommandFlags("give");	
-		SetCommandFlags("give", flags & ~FCVAR_CHEAT);
-		for (int i = 1; i <= MaxClients; i++)
-		{
-			if (IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i))
-			{
-				FakeClientCommand(i, "give health");
-				SetSurvivorPermanentHealth(i, MaxHP);
-				SetSurvivorTempHealth(i, 0);
-			}
-		}
-		SetCommandFlags("give", flags|FCVAR_CHEAT);
+		if(!IsPlayerAlive(client)) return;
 
+		CheatCommand(client, "give health");
 		SetSurvivorPermanentHealth(client, finalPermanentHealth);
 		SetSurvivorTempHealth(client, finalTempHealth);
+
 	}
 
 	return;
@@ -143,4 +136,23 @@ void SetSurvivorTempHealth(int client, int health)
 bool IsValidPlayerIndex(int client)
 {
 	return ( (client > 0) && (client <= MaxClients) );
+}
+
+void CheatCommand(int client, const char[] sCommand) {
+	if (!client || !IsClientInGame(client))
+		return;
+
+	char sCmd[32];
+	if (SplitString(sCommand, " ", sCmd, sizeof sCmd) == -1)
+		strcopy(sCmd, sizeof sCmd, sCommand);
+
+	int iFlagBits, iCmdFlags;
+	iFlagBits = GetUserFlagBits(client);
+	iCmdFlags = GetCommandFlags(sCmd);
+	SetUserFlagBits(client, ADMFLAG_ROOT);
+	SetCommandFlags(sCmd, iCmdFlags & ~FCVAR_CHEAT);
+	FakeClientCommand(client, sCommand);
+	SetUserFlagBits(client, iFlagBits);
+	SetCommandFlags(sCmd, iCmdFlags);
+
 }
