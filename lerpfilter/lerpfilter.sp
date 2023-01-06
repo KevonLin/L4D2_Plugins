@@ -22,7 +22,7 @@ public Plugin myinfo =
 	name = "Lerp Filter",
 	author = "KevonLin",
 	description = "过滤掉高于指定lerp的玩家",
-	version = "1.0",
+	version = "1.1",
 	url = "https://github.com/KevonLin"
 };
 
@@ -67,31 +67,39 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 
 public void OnClientPostAdminCheck(int client)
 {
+	CheckLerp();
+}
+
+void CheckLerp()
+{
 	if(!g_bCvarLFEnable) return;
 
-	if(!IsValidPlayer(client)) return;
-
-	if(CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
+	for(int client = 1;client < MaxClients; client++)
 	{
-		return;
-	}
+		if(!IsValidPlayer(client)) return;
 
-	if(GetUserFlagBits(client) & ADMFLAG_GENERIC)
-	{
-		return;
-	}
+		if(CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
+		{
+			return;
+		}
 
-	if(GetLerpTime(client) > g_fCvarLerpFilter)
-	{
-		// CPrintToChatAll("{blue}[{default}LF{blue}] {default}%N {defalut}被认定为新手玩家", client);
+		if(GetUserFlagBits(client) & ADMFLAG_GENERIC)
+		{
+			return;
+		}
 
-		PrintToChatAll("[LF] %N 被认定为新手玩家", client);
-		// CPrintToChat(client, "{blue}[{defalut}LF{blue}] {defalut}根据你的Lerp你被认定为新手玩家");
-		// CPrintToChat(client, "{blue}[{defalut}LF{blue}] {defalut}为了保护你的安全,{blue}30s{defalut}后你将被踢出服务器");
-		PrintToChat(client, "[LF] 根据你的Lerp你被认定为新手玩家");
-		PrintToChat(client, "[LF] 为了保护你的安全,30s后你将被踢出服务器");
-		
-		CreateTimer(30.0, Timer_KickDelay, client);
+		if(GetLerpTime(client) > g_fCvarLerpFilter)
+		{
+			// CPrintToChatAll("{blue}[{default}LF{blue}] {default}%N {defalut}被认定为新手玩家", client);
+
+			PrintToChatAll("[LF] %N 被认定为新手玩家", client);
+			// CPrintToChat(client, "{blue}[{defalut}LF{blue}] {defalut}根据你的Lerp你被认定为新手玩家");
+			// CPrintToChat(client, "{blue}[{defalut}LF{blue}] {defalut}为了保护你的安全,{blue}30s{defalut}后你将被踢出服务器");
+			PrintToChat(client, "[LF] 根据你的Lerp你被认定为新手玩家");
+			PrintToChat(client, "[LF] 为了保护你的安全,30s后你将被踢出服务器");
+			
+			CreateTimer(30.0, Timer_KickDelay, client);
+		}
 	}
 }
 
@@ -123,6 +131,7 @@ public Action LerpFilter_Cmd(int client, int args)
 	{
 		SetConVarBool(cVarLFEnable, true);
 		ReplyToCommand(client, "[LF] Lerp过滤已启用");
+		CheckLerp();
 	}
 	else if(strcmp("off", Arguments) == 0)
 	{
