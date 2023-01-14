@@ -76,16 +76,16 @@ void CheckLerp()
 
 	for(int client = 1;client < MaxClients; client++)
 	{
-		if(!IsValidPlayer(client)) return;
+		if(!IsValidPlayer(client)) continue;
 
 		if(CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
 		{
-			return;
+			continue;
 		}
 
 		if(GetUserFlagBits(client) & ADMFLAG_GENERIC)
 		{
-			return;
+			continue;
 		}
 
 		if(GetLerpTime(client) > g_fCvarLerpFilter)
