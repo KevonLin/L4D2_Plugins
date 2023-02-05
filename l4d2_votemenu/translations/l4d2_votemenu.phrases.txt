@@ -98,13 +98,13 @@
 
     "Toggle addons"
     {
-        "chi"       "开启/禁用 Mod"
+        "chi"       "启用/禁用 Mod"
         "en"        "Enable/Disable Addons"
     }
 
     "Toggle ready"
     {
-        "chi"       "开启/禁用 Ready"
+        "chi"       "启用/禁用 Ready"
         "en"        "Enable/Disable Ready"
     }
 
@@ -166,5 +166,47 @@
     {
         "chi"       "选择配置"
         "en"        "Select config"
+    }
+
+    "Vote next map"
+    {
+        "chi"       "投票下一张地图"
+        "en"        "Vote next map to"
+    }
+
+    "Change custom map"
+    {
+        "chi"       "投票第三方地图"
+        "en"        "Change the custom map"
+    }
+
+    "Ban player"
+    {
+        "chi"       "封禁玩家"
+        "en"        "Ban player"
+    }
+
+    "Kick player"
+    {
+        "chi"       "踢出玩家"
+        "en"        "Kick player"
+    }
+
+    "Kick all spectators"
+    {
+        "chi"       "踢出所有旁观"
+        "en"        "Kick all spectators"
+    }
+
+    "Mute player"
+    {
+        "chi"       "静音玩家"
+        "en"        "Mute player"
+    }
+
+    "Toggle lerp filter"
+    {
+        "chi"       "启用/禁用Lerp过滤"
+        "en"        "Toggle the lerp filter"
     }
 }
