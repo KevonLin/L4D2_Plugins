@@ -6,6 +6,8 @@
 #include <l4d2util>
 #include <left4dhooks>
 
+#define DMG_BLAST 134217792
+
 #define DEBUG 0
 
 ConVar
@@ -74,7 +76,7 @@ public Action OnTakeDamageFromBlast(int iVictim, int &iAttacker, int &iInflictor
 	PrintToChatAll("iDamagetype:%i", iDamagetype);
 	#endif
 	//1.判断伤害类型是否是爆炸
-	if(iDamagetype != 134217792) return Plugin_Continue;
+	if(iDamagetype != DMG_BLAST) return Plugin_Continue;
 
 	#if DEBUG
 	PrintToChatAll("确认爆炸伤害");
