@@ -33,7 +33,7 @@ ConVar
 	sm_votemenu_pills,
 	sm_votemenu_changeslots,
 	sm_votemenu_nextmap,
-	sm_votemenu_changethirdmaps,
+	sm_votemenu_changecustommaps,
 	sm_votemenu_ban,
 	sm_votemenu_kick,
 	sm_votemenu_mute,
@@ -115,7 +115,7 @@ public Plugin myinfo =
 	name = "Vote Menu",
 	author = "Kevonlin",
 	description = "Vote Menu.",
-	version = "2.2",
+	version = "2.2.1",
 	url = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -157,7 +157,7 @@ public void OnPluginStart()
 	sm_votemenu_pills = CreateConVar("sm_votemenu_pills", "1", "Give hp Enable");
 	sm_votemenu_changeslots = CreateConVar("sm_votemenu_changeslots", "1", "Change slots Enable");
 	sm_votemenu_nextmap = CreateConVar("sm_votemenu_nextmap", "1", "Change next map Enable");
-	sm_votemenu_changethirdmaps = CreateConVar("sm_votemenu_changethirdmaps", "1", "Change custom maps Enable");
+	sm_votemenu_changecustommaps = CreateConVar("sm_votemenu_changecustommaps", "1", "Change custom maps Enable");
 	sm_votemenu_ban = CreateConVar("sm_votemenu_ban", "1", "Ban Enable");
 	sm_votemenu_kick = CreateConVar("sm_votemenu_kick", "1", "Kick Enable");
 	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "1", "Mute Enable");
@@ -183,7 +183,7 @@ public void OnPluginStart()
 	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
 	g_cvarChangeSlots = GetConVarBool(sm_votemenu_changeslots);
 	g_cvarNextMap = GetConVarBool(sm_votemenu_nextmap);
-	g_cvarThirdMap = GetConVarBool(sm_votemenu_changethirdmaps);
+	g_cvarThirdMap = GetConVarBool(sm_votemenu_changecustommaps);
 	g_cvarBan = GetConVarBool(sm_votemenu_ban);
 	g_cvarKick = GetConVarBool(sm_votemenu_kick);
 	g_cvarMute = GetConVarBool(sm_votemenu_mute);
@@ -210,7 +210,7 @@ public void OnPluginStart()
 	HookConVarChange(sm_votemenu_pills, CVarChanged);	
 	HookConVarChange(sm_votemenu_changeslots, CVarChanged);
 	HookConVarChange(sm_votemenu_nextmap, CVarChanged);	
-	HookConVarChange(sm_votemenu_changethirdmaps, CVarChanged);
+	HookConVarChange(sm_votemenu_changecustommaps, CVarChanged);
 	HookConVarChange(sm_votemenu_ban, CVarChanged);	
 	HookConVarChange(sm_votemenu_kick, CVarChanged);
 	HookConVarChange(sm_votemenu_mute, CVarChanged);	
@@ -322,7 +322,7 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
 	g_cvarChangeSlots = GetConVarBool(sm_votemenu_changeslots);
 	g_cvarNextMap = GetConVarBool(sm_votemenu_nextmap);
-	g_cvarThirdMap = GetConVarBool(sm_votemenu_changethirdmaps);
+	g_cvarThirdMap = GetConVarBool(sm_votemenu_changecustommaps);
 	g_cvarBan = GetConVarBool(sm_votemenu_ban);
 	g_cvarKick = GetConVarBool(sm_votemenu_kick);
 	g_cvarMute = GetConVarBool(sm_votemenu_mute);
@@ -388,8 +388,8 @@ void BuildVoteMenu(int iClient)
 	}
 	if (g_cvarThirdMap)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change third maps" ,iClient);
-		vMenu.AddItem("changethirdmaps", sBuffer);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change custom maps" ,iClient);
+		vMenu.AddItem("changecustommaps", sBuffer);
 	}
 	if (g_cvarBan)
 	{
@@ -510,7 +510,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 
 				NextMapMenu(param1);
 			}
-			else if (strcmp(item, "changethirdmaps") == 0)
+			else if (strcmp(item, "changecustommaps") == 0)
 			{
 				if (!g_cvarNextMap)
 				{
@@ -914,7 +914,8 @@ void SelectPlayerMenu(int iClient)
 
 	if(g_voteType == view_as<voteType>(kick))
 	{
-		vMenu.AddItem("kickspecs", "踢出所有旁观");
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Kick all spectators" ,iClient);
+		vMenu.AddItem("kickspecs", sBuffer);
 	}
 
 	for (int i = 1; i <= MaxClients; i++)
@@ -1474,23 +1475,23 @@ bool StartVote(int iClient)
 		}
 		else if (g_voteType == view_as<voteType>(nextmap))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "Vote Next Map: %s", g_sVoteNextMapName);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Vote next map", g_sVoteNextMapName);
 		}
 		else if (g_voteType == view_as<voteType>(thirdmap))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "Change Custom Map: %s", g_sVoteCustomMapName);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Change custom map", g_sVoteCustomMapName);
 		}
 		else if (g_voteType == view_as<voteType>(ban))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "Ban Player [%N] 30min", g_selectClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Ban players", g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(kick))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "Kick Player [%N]", g_selectClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N]", "Kick players", g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(mute))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "Mute Player [%N] 30min", g_selectClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Mute players", g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(addons))
 		{
