@@ -1475,23 +1475,23 @@ bool StartVote(int iClient)
 		}
 		else if (g_voteType == view_as<voteType>(nextmap))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Vote next map", g_sVoteNextMapName);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Vote next map", g_sVoteNextMapName, iClient);
 		}
 		else if (g_voteType == view_as<voteType>(thirdmap))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Change custom map", g_sVoteCustomMapName);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Change custom map", g_sVoteCustomMapName, iClient);
 		}
 		else if (g_voteType == view_as<voteType>(ban))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Ban players", g_selectClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Ban players", g_selectClient, iClient);
 		}
 		else if (g_voteType == view_as<voteType>(kick))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N]", "Kick players", g_selectClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N]", "Kick players", g_selectClient, iClient);
 		}
 		else if (g_voteType == view_as<voteType>(mute))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Mute players", g_selectClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Mute players", g_selectClient, iClient);
 		}
 		else if (g_voteType == view_as<voteType>(addons))
 		{
