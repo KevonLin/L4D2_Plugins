@@ -78,7 +78,7 @@ bool
 	g_cvarGivePills,
 	g_cvarChangeSlots,
 	g_cvarNextMap,
-	g_cvarThirdMap,
+	g_cvarCustomMap,
 	g_cvarBan,
 	g_cvarKick,
 	g_cvarMute,
@@ -98,7 +98,7 @@ enum voteType
 	pills,
 	slots,
 	nextmap,
-	thirdmap,
+	custommap,
 	ban,
 	kick,
 	mute,
@@ -183,7 +183,7 @@ public void OnPluginStart()
 	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
 	g_cvarChangeSlots = GetConVarBool(sm_votemenu_changeslots);
 	g_cvarNextMap = GetConVarBool(sm_votemenu_nextmap);
-	g_cvarThirdMap = GetConVarBool(sm_votemenu_changecustommaps);
+	g_cvarCustomMap = GetConVarBool(sm_votemenu_changecustommaps);
 	g_cvarBan = GetConVarBool(sm_votemenu_ban);
 	g_cvarKick = GetConVarBool(sm_votemenu_kick);
 	g_cvarMute = GetConVarBool(sm_votemenu_mute);
@@ -322,7 +322,7 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 	g_cvarGivePills = GetConVarBool(sm_votemenu_pills);
 	g_cvarChangeSlots = GetConVarBool(sm_votemenu_changeslots);
 	g_cvarNextMap = GetConVarBool(sm_votemenu_nextmap);
-	g_cvarThirdMap = GetConVarBool(sm_votemenu_changecustommaps);
+	g_cvarCustomMap = GetConVarBool(sm_votemenu_changecustommaps);
 	g_cvarBan = GetConVarBool(sm_votemenu_ban);
 	g_cvarKick = GetConVarBool(sm_votemenu_kick);
 	g_cvarMute = GetConVarBool(sm_votemenu_mute);
@@ -363,68 +363,68 @@ void BuildVoteMenu(int iClient)
 {
 	char sBuffer[64];
 	Menu vMenu = new Menu(VoteMenuHandler);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Menu name" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Menu name", iClient);
 	vMenu.SetTitle(sBuffer);
 	
 	if (g_cvarGiveHP)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give hp" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give hp", iClient);
 		vMenu.AddItem("givehp", sBuffer);
 	}
 	if (g_cvarGivePills)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give pills" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give pills", iClient);
 		vMenu.AddItem("givepills", sBuffer);
 	}
 	if (g_cvarChangeSlots)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change slots" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change slots", iClient);
 		vMenu.AddItem("changeslots", sBuffer);
 	}
 	if (g_cvarNextMap)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Next map" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Next map", iClient);
 		vMenu.AddItem("nextmap", sBuffer);
 	}
-	if (g_cvarThirdMap)
+	if (g_cvarCustomMap)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change custom maps" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change custom maps", iClient);
 		vMenu.AddItem("changecustommaps", sBuffer);
 	}
 	if (g_cvarBan)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Ban players" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Ban players", iClient);
 		vMenu.AddItem("banplayers", sBuffer);
 	}
 	if (g_cvarKick)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Kick players" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Kick players", iClient);
 		vMenu.AddItem("kickplayers", sBuffer);
 	}
 	if (g_cvarMute)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Mute players" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Mute players", iClient);
 		vMenu.AddItem("muteplayers", sBuffer);
 	}
 	if (g_cvarToggleAddons)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons", iClient);
 		vMenu.AddItem("toggleaddons", sBuffer);
 	}
 	if (g_cvarToggleReady)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready", iClient);
 		vMenu.AddItem("toggleready", sBuffer);
 	}
 	if (g_bCvarToggleLerpFilter)
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle lerp filter" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle lerp filter", iClient);
 		vMenu.AddItem("togglelerpfilter", sBuffer);
 	}
 
 	// if (g_cvarChangeConfigs)
 	// {
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change config" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change config", iClient);
 	vMenu.AddItem("changeconfig", sBuffer);
 	// }
 
@@ -519,7 +519,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 					return 0;
 				}
 
-				ThirdMapMenu(param1);
+				CustomMapMenu(param1);
 			}
 			else if (strcmp(item, "banplayers") == 0)
 			{
@@ -616,18 +616,18 @@ void SlotsMenu(int iClient)
 {
 	char sBuffer[64];
 	Menu vMenu = new Menu(SlotsMenuHandler);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots Menu" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots Menu", iClient);
 	vMenu.SetTitle(sBuffer);
 	
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 8" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 8", iClient);
 	vMenu.AddItem("slots8", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 10" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 10", iClient);
 	vMenu.AddItem("slots10", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 12" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 12", iClient);
 	vMenu.AddItem("slots12", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 14" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 14", iClient);
 	vMenu.AddItem("slots14", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 16" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 16", iClient);
 	vMenu.AddItem("slots16", sBuffer);
 
 	vMenu.ExitBackButton = true;
@@ -755,7 +755,7 @@ void NextMapMenu(int iClient)
 {
 	char sBuffer[64];
 	Menu vMenu = new Menu(NextMapMenuHandler);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select map menu" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select map menu", iClient);
 	vMenu.SetTitle(sBuffer);
 	
 	for (int i = 0; i < g_nextMapCount; i++)
@@ -828,11 +828,11 @@ void ParseNextCampaigns()
 	}
 }
 
-void ThirdMapMenu(int iClient)
+void CustomMapMenu(int iClient)
 {
 	char sBuffer[64];
-	Menu vMenu = new Menu(ThirdMapMenuHandler);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select map menu" ,iClient);
+	Menu vMenu = new Menu(CustomMapMenuHandler);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select map menu", iClient);
 	vMenu.SetTitle(sBuffer);
 	
 	for (int i = 0; i < g_customMapCount; i++)
@@ -845,14 +845,14 @@ void ThirdMapMenu(int iClient)
 	vMenu.Display(iClient, 30);
 }
 
-public int ThirdMapMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+public int CustomMapMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 {
 	if (action == MenuAction_End) {
 		delete menu;
 	} else if (action == MenuAction_Cancel){
 		BuildVoteMenu(param1);
 	} else if (action == MenuAction_Select) {
-		g_voteType = view_as<voteType>(thirdmap);
+		g_voteType = view_as<voteType>(custommap);
 
 		menu.GetItem(param2, g_sVoteCustomMapIndex, sizeof(g_sVoteCustomMapIndex), _, g_sVoteCustomMapName, sizeof(g_sVoteCustomMapName));
 
@@ -909,12 +909,12 @@ void SelectPlayerMenu(int iClient)
 {
 	char sBuffer[64],sClientID[64];
 	Menu vMenu = new Menu(SelectPlayerMenuHandler);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select pleyer menu" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select pleyer menu", iClient);
 	vMenu.SetTitle(sBuffer);
 
 	if(g_voteType == view_as<voteType>(kick))
 	{
-		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Kick all spectators" ,iClient);
+		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Kick all spectators", iClient);
 		vMenu.AddItem("kickspecs", sBuffer);
 	}
 
@@ -1070,12 +1070,12 @@ void AddonsMenu(int iClient)
 {
 	char sBuffer[64];
 	Menu vMenu = new Menu(AddonsMenuHandler);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons", iClient);
 	vMenu.SetTitle(sBuffer);
 	
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable addons" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable addons", iClient);
 	vMenu.AddItem("enablemod", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable addons" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable addons", iClient);
 	vMenu.AddItem("disablemod", sBuffer);
 
 	vMenu.ExitBackButton = true;
@@ -1145,12 +1145,12 @@ void ReadyMenu(int iClient)
 {
 	char sBuffer[64];
 	Menu vMenu = new Menu(ReadyMenuHandler);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready", iClient);
 	vMenu.SetTitle(sBuffer);
 	
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable ready" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable ready", iClient);
 	vMenu.AddItem("enableready", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable ready" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable ready", iClient);
 	vMenu.AddItem("disableready", sBuffer);
 
 	vMenu.ExitBackButton = true;
@@ -1223,9 +1223,9 @@ void ToggleLerpFilterMenu(int iClient)
 	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle lerp filter", iClient);
 	vMenu.SetTitle(sBuffer);
 	
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable lerp filter" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable lerp filter", iClient);
 	vMenu.AddItem("enablefilter", sBuffer);
-	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable lerp filter" ,iClient);
+	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable lerp filter", iClient);
 	vMenu.AddItem("disablefilter", sBuffer);
 
 	vMenu.ExitBackButton = true;
@@ -1475,11 +1475,11 @@ bool StartVote(int iClient)
 		}
 		else if (g_voteType == view_as<voteType>(nextmap))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Vote next map", g_sVoteNextMapName, iClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Vote next map", iClient, g_sVoteNextMapName);
 		}
-		else if (g_voteType == view_as<voteType>(thirdmap))
+		else if (g_voteType == view_as<voteType>(custommap))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Change custom map", g_sVoteCustomMapName, iClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Change custom map", iClient, g_sVoteCustomMapName);
 		}
 		else if (g_voteType == view_as<voteType>(ban))
 		{
@@ -1598,7 +1598,7 @@ public Action ExecVoteRes(Handle timer, any client)
 			LogMessage("Vote next map pass");	
 		}
 
-		case (view_as<voteType>(thirdmap)):
+		case (view_as<voteType>(custommap)):
 		{
 			ChangeCustomMap();
 			LogMessage("Vote to change custom map [%s] pass", g_sVoteCustomMapName);	

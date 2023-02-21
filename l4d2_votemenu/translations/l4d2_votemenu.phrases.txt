@@ -33,7 +33,7 @@
     "Change custom maps"
     {
         "chi"       "更换三方图"
-        "en"        "Change Third Maps"
+        "en"        "Change Custom Maps"
     }
 
     "Ban players"
