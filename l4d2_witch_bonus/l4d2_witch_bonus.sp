@@ -21,7 +21,7 @@ public Plugin myinfo =
 	name = "Witch Bonus",
 	author = "Kevonlin",
 	description = "Recovery health when kill the witch and punish health when tank kill the witch.",
-	version = "1.1",
+	version = "1.2",
 	url = "https://steamcommunity.com/id/harrylin134/"
 };
 
@@ -51,6 +51,8 @@ public void Event_WitchKilled(Event hEvent, const char[] sEventName, bool bDontB
 
 	// 判定不为生还者return
 	// if (GetClientTeam(client) != L4D2Team_Survivor) return;
+
+	// 如果是Tank击杀，则扣血
 	if (GetClientTeam(client) == L4D2Team_Infected)
 	{
 		if (!g_hCvarPunishEnable.BoolValue) return;
@@ -63,8 +65,12 @@ public void Event_WitchKilled(Event hEvent, const char[] sEventName, bool bDontB
 
 		SetEntProp(client, Prop_Send, "m_iHealth", tankHealth);
 	}
+	// 如果是生还者击杀
 	else if (GetClientTeam(client) == L4D2Team_Survivor)
 	{
+		// 判断生还者是否倒地
+		if (IsIncapacitated(client)) return;
+
 		// 获取实血和虚血
 		int permanentHealth = GetSurvivorHardHealth(client);
 		int tempHealth = GetSurvivorTempHealth(client);
@@ -98,17 +104,11 @@ public void Event_WitchKilled(Event hEvent, const char[] sEventName, bool bDontB
 			finalTempHealth = (((MaxHP - finalPermanentHealth) < 0) ? 0 : (MaxHP - finalPermanentHealth));
 		}
 
-		if (!IsClientInGame(client)) return;
-
-		if(!IsPlayerAlive(client)) return;
-
 		CheatCommand(client, "give health");
 		SetSurvivorPermanentHealth(client, finalPermanentHealth);
 		SetSurvivorTempHealth(client, finalTempHealth);
 
 	}
-
-	return;
 }
 
 int GetSurvivorHardHealth(int client)
@@ -118,7 +118,7 @@ int GetSurvivorHardHealth(int client)
 
 int GetSurvivorTempHealth(int client)
 {
-	int temphp = RoundToCeil(GetEntPropFloat(client, Prop_Send, "m_healthBuffer") - ((GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_healthBufferTime")) * GetConVarFloat(FindConVar("pain_pills_decay_rate")))) - 1;
+	int temphp = RoundToCeil(GetEntPropFloat(client, Prop_Send, "m_healthBuffer") - ((GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_healthBufferTime")) * GetConVarFloat(FindConVar("pain_pills_decay_rate"))));
 	return (temphp > 0 ? temphp : 0);
 }
 
