@@ -115,7 +115,7 @@ public Plugin myinfo =
 	name = "Vote Menu",
 	author = "Kevonlin",
 	description = "Vote Menu.",
-	version = "2.2.1",
+	version = "2.2.2",
 	url = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -1483,15 +1483,15 @@ bool StartVote(int iClient)
 		}
 		else if (g_voteType == view_as<voteType>(ban))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Ban players", g_selectClient, iClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Ban players", iClient, g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(kick))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N]", "Kick players", g_selectClient, iClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N]", "Kick players", iClient, g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(mute))
 		{
-			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Mute players", g_selectClient, iClient);
+			FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Mute players", iClient, g_selectClient);
 		}
 		else if (g_voteType == view_as<voteType>(addons))
 		{
