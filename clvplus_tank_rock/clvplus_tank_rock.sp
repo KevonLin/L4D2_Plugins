@@ -25,7 +25,7 @@ public Plugin myinfo =
     name = "坦克石头血量",
     author = "Kevonlin",
     description = "坦克石头血量调整",
-    version = "1.0",
+    version = "1.0.1",
     url = "https://github.com/KevonLin"
 }
 
@@ -47,8 +47,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnPluginStart()
 {
 	// cvars
-	g_hCvarTankRockHealth = CreateConVar("clvplus_rock_health", "50.0", "石头血量.", _, true, 0.0);
-	g_hCvarRockAttack = CreateConVar("clvplus_rock_attack", "1.25", "生还者每次对石头造成多少伤害", _, true, 0.0);
+	g_hCvarTankRockHealth = CreateConVar("clvplus_rock_health", "100.0", "石头血量.", _, true, 0.0);
+	g_hCvarRockAttack = CreateConVar("clvplus_rock_attack", "2.5", "生还者每次对石头造成多少伤害", _, true, 0.0);
 
 	GetCvar();
 
@@ -82,6 +82,8 @@ public void L4D_TankRock_OnRelease_Post(int tank, int rock, const float vecPos[3
 
 public Action Hook_OnTakeDamage(int iVictim, int &iAttacker, int &iInflictor, float &fDamage, int &iDamagetype)
 {
+	if (!IsValidPlayerIndex(iAttacker)) return Plugin_Continue;
+
 	//1.判断是否为机枪 
 	if(!IsPlayerUseSmg(iAttacker)) return Plugin_Continue;
 
@@ -119,4 +121,9 @@ bool IsPlayerUseSmg(int iClient)
 		return StrEqual(buffer, "weapon_smg") || StrEqual(buffer, "weapon_smg_silenced");
 	}
 	return false;
+}
+
+bool IsValidPlayerIndex(int client)
+{
+	return ( (client > 0) && (client <= MaxClients) );
 }

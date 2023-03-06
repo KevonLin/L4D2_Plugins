@@ -115,7 +115,7 @@ public Plugin myinfo =
 	name = "Vote Menu",
 	author = "Kevonlin",
 	description = "Vote Menu.",
-	version = "2.2.2",
+	version = "2.2.3",
 	url = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -949,8 +949,10 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
 			FakeClientCommand(param1, "sm_kickspecs");
 			return 0;
 		}
-		
+
 		int target = GetClientOfUserId(StringToInt(item));
+
+		if(!(IsValidPlayerIndex(param1) && IsValidPlayerIndex(target))) return 0;
 		
 		AdminId clientAdmin = GetUserAdmin(param1);
 		AdminId targetAdmin = GetUserAdmin(target);
@@ -1692,6 +1694,7 @@ void GivePills()
 	SetCommandFlags("give", flags & ~FCVAR_CHEAT);
 	for (int i = 1; i <= MaxClients; i++)
 	{
+		if(!IsValidPlayerIndex(i)) continue;
 		if (IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i))
 		{
 			if(HasPills(i))
@@ -1856,4 +1859,9 @@ bool IsDefaultEnableMod()
 	mp_gamemode.GetString(sGamemode, sizeof(sGamemode));
 	
 	return strcmp(sGamemode, "coop") == 0;
+}
+
+bool IsValidPlayerIndex(int client)
+{
+	return ( (client > 0) && (client <= MaxClients) );
 }
