@@ -93,7 +93,7 @@
     "Slots 10"
     {
         "chi"       "更改服务器最大人数至10人"
-        "en"        "Limit slots to 12"
+        "en"        "Limit slots to 10"
     }
 
     "Slots 12"
@@ -105,7 +105,7 @@
     "Slots 14"
     {
         "chi"       "更改服务器最大人数至14人"
-        "en"        "Limit slots to 12"
+        "en"        "Limit slots to 14"
     }
 
     "Slots 16"
