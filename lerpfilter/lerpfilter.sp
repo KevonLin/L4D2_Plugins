@@ -67,6 +67,8 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 
 public void OnClientPostAdminCheck(int client)
 {
+	if(!IsValidPlayer(client)) return;
+	if(!IsClientConnected(client)) return;
 	CheckLerp();
 }
 
