@@ -25,7 +25,7 @@ public Plugin myinfo =
 	name		= "Spawn Commons",
 	author		= "KevonLin",
 	description = "Spawn commons when a common dead",
-	version		= "1.0.0",
+	version		= "1.0.1",
 	url			= "https://github.com//KevonLin"
 };
 
@@ -83,7 +83,7 @@ public Action Command_DelPos (int client, int args)
 void Do_SpawnInfected_Old(int client)
 {
 	int zombie = CreateEntityByName("infected");
-	SetEntityModel(zombie, "models/infected/common_male_ceda.mdl");
+	// SetEntityModel(zombie, "models/infected/common_male_ceda.mdl");
 	int ticktime = RoundToNearest(GetGameTime() / GetTickInterval()) + 5;
 	SetEntProp(zombie, Prop_Data, "m_nNextThinkTick", ticktime);
 	DispatchSpawn(zombie);
