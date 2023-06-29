@@ -69,20 +69,20 @@ public Action Panel_hear(int client, int args)
 
 public void Event_PlayerChangeTeam(Handle event, const char[] name, bool dontBroadcast)
 {
-	int userID = GetClientOfUserId(GetEventInt(event, "userid"));
-	int userTeam = GetEventInt(event, "team");
-	if(userID == 0)
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client_team = GetEventInt(event, "team");
+	if(client == 0)
 		return;
 
 	//PrintToChat(userID,"\x02X02 \x03X03 \x04X04 \x05X05 ");\\ \x02:color:default \x03:lightgreen \x04:orange \x05:darkgreen
 	
-	if(userTeam==TEAM_SPEC)
+	if(client_team == TEAM_SPEC)
 	{
-		SetClientListeningFlags(userID, VOICE_LISTENALL);
+		SetClientListeningFlags(client, VOICE_LISTENALL);
 	}
 	else
 	{
-		SetClientListeningFlags(userID, VOICE_NORMAL);
+		SetClientListeningFlags(client, VOICE_NORMAL);
 	}
 }
 	
