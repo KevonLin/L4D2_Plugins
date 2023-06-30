@@ -1,6 +1,7 @@
 #include <sdkhooks>
 #include <sdktools>
 #include <sourcemod>
+#include <colors>
 #pragma newdecls required
 #pragma semicolon 1
 
@@ -22,7 +23,7 @@ public Plugin myinfo =
 	name		= "Spectator Listener",
 	author		= "KevonLin",
 	description = "Enable spectatot listen voice of other teams",
-	version		= "1.0.3",
+	version		= "1.0.4",
 	url			= "https://github.com//KevonLin"
 };
 
@@ -56,12 +57,12 @@ public Action Panel_hear(int client, int args)
 	if (flag == VOICE_NORMAL)
 	{
 		SetClientListeningFlags(client, VOICE_LISTENALL);
-		PrintToChat(client, "\x04[Listener] \x03Enable");
+		CPrintToChat(client, "{default}[{blue}Listener{default}] {blue}Enable");
 	}
 	else if (flag == VOICE_LISTENALL)
 	{
 		SetClientListeningFlags(client, VOICE_NORMAL);
-		PrintToChat(client, "\x04[Listener] \x03Disable");
+		CPrintToChat(client, "{default}[{blue}Listener{default}] {blue}Disable");
 	}
 	return Plugin_Handled;
 
