@@ -1,0 +1,1 @@
+需要配合lerpfilter使用，否则无法获取convar
