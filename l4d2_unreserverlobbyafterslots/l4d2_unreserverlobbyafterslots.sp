@@ -2,8 +2,9 @@
 #include <sdktools>
 #include <left4dhooks>
 #include <l4d2util>
+#include <colors>
 
-#define UNRESERVE_VERSION "1.1"
+#define UNRESERVE_VERSION "1.2"
 
 Handle
 	cvarMvMaxPlayers,
@@ -22,8 +23,6 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	LoadTranslations("common.phrases");
-	
 	CreateConVar("l4d_unreserve_version", UNRESERVE_VERSION);
 
 	cvarMvMaxPlayers = FindConVar("sv_maxplayers");
@@ -37,10 +36,10 @@ public ConVarChange(Handle:convar, const String:oldValue[], const String:newValu
 	MaxSlots = GetConVarInt(cvarMvMaxPlayers);
 	SvLobby = GetConVarInt(cvarSvLobby);
 
-	if((MaxSlots != 4 || MaxSlots != 8) && SvLobby != 0)
+	if((MaxSlots != 4 && MaxSlots != 8) && SvLobby != 0)
     {
 		SetConVarInt(FindConVar("sv_allow_lobby_connect_only"), 0);
 		L4D_LobbyUnreserve();
-		PrintToChatAll("[UL] Server was removed lobby matching.");
+		CPrintToChatAll("{default}[{blue}UL{default}] Server was removed lobby matching.");
     }
 }
