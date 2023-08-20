@@ -40,7 +40,7 @@ ConVar
 	sm_votemenu_toggleaddons,
 	sm_votemenu_toggleready,
 	// sm_votemenu_togglelerpfilter,
-	// sm_votemenu_changeconfigs,
+	sm_votemenu_changeconfigs,
 	sm_match_player_limit,
 	sm_votemenu_nextmap_timer_delay,
 	l4d_votemenu_debug,
@@ -163,7 +163,7 @@ public void OnPluginStart()
 	sm_votemenu_mute = CreateConVar("sm_votemenu_mute", "1", "Mute Enable");
 	sm_votemenu_toggleaddons = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
 	sm_votemenu_toggleready = CreateConVar("sm_votemenu_toggleready", "0", "Toggle ready Enable");
-	// sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
+	sm_votemenu_changeconfigs = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
 	// sm_votemenu_togglelerpfilter = CreateConVar("sm_votemenu_togglelerpfilter", "1", "Toggle lerp filter Enable");
 	sm_match_player_limit = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
 	sm_votemenu_nextmap_timer_delay = CreateConVar("sm_votemenu_nextmap_timer_delay", "8.0", "Change next map timer delay", _, true, 0.0);
@@ -190,7 +190,7 @@ public void OnPluginStart()
 	g_cvarToggleAddons = GetConVarBool(sm_votemenu_toggleaddons);
 	g_cvarToggleReady = GetConVarBool(sm_votemenu_toggleready);
 	g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
-	// g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
+	g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
 	// g_bCvarToggleLerpFilter = GetConVarBool(sm_votemenu_togglelerpfilter);
 	g_bDebug = GetConVarBool(l4d_votemenu_debug);
 	g_cvarAddons = GetConVarInt(cvarAddons);
@@ -328,7 +328,7 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 	g_cvarMute = GetConVarBool(sm_votemenu_mute);
 	g_cvarToggleAddons = GetConVarBool(sm_votemenu_toggleaddons);
 	g_cvarToggleReady = GetConVarBool(sm_votemenu_toggleready);
-	// g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
+	g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs);
 	// g_bCvarToggleLerpFilter = GetConVarBool(sm_votemenu_togglelerpfilter);
 	g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
 }
@@ -422,11 +422,11 @@ void BuildVoteMenu(int iClient)
 	// 	vMenu.AddItem("togglelerpfilter", sBuffer);
 	// }
 
-	// if (g_cvarChangeConfigs)
-	// {
+	if (g_cvarChangeConfigs)
+	{
 	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change config", iClient);
 	vMenu.AddItem("changeconfig", sBuffer);
-	// }
+	}
 
 	vMenu.ExitButton = true;
 	vMenu.Display(iClient, 30);
@@ -590,11 +590,12 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			{
 				if (!g_cvarChangeConfigs)
 				{
-					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}Use !rmatch and !match to load a config.");
+					CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
+					// CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}Use !rmatch and !match to load a config.");
 					// BuildVoteMenu(param1);
 					return 0;
 				}
-
+				FakeClientCommand(param1, "sm_chmatch");
 				// MatchModeMenu(param1);
 			}
 			// else if (strcmp(item, "togglelerpfilter") == 0)
