@@ -16,7 +16,7 @@
 static const String:SURRENDER_BUTTON_STRING[]	  = "RELOAD"; // what is shown in the Notification as Button to press
 static const SURRENDER_BUTTON					   = IN_RELOAD; // Sourcemod Button definition. Alternatives: IN_DUCK, IN_USE
 
-static const String:GAMEDATA_FILENAME[]			 = "l4d2addresses";
+static const String:GAMEDATA_FILENAME[]			 = "left4dhooks.l4d2";
 static const String:GHOST_ENTPROP[]				 = "m_isGhost";
 static const String:CLASS_ENTPROP[]				 = "m_zombieClass";
 static const Float:CONTROL_DELAY_SAFETY			 = 0.3;

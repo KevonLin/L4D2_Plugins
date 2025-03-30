@@ -3,140 +3,105 @@
 
 #include <sourcemod>
 #include <sdktools>
-#include <builtinvotes>
-#undef REQUIRE_PLUGIN
-#include <confogl>
+#include <sdkhooks>
 #include <colors>
-#define L4D2UTIL_STOCKS_ONLY 1
-#include <l4d2util>
-#include <left4dhooks>
-#include <basecomm>
 
-ConVar
-	clvplus_charger_catch_dmg;
+#define PLUGIN_VERSION "3.1"
+#define VALID_DAMAGE_TYPES DMG_CLUB // 使用近战伤害类型
 
-int
-	iDmgChargerCatch;
+ConVar g_hChargeDamage;
 
-public Plugin myinfo =
+public Plugin myinfo = 
 {
-	name = "Charger冲撞伤害调整",
-	author = "Kevonlin",
-	description = "",
-	version = "2.0",
-	url = "https://steamcommunity.com/profiles/76561199044101393/"
+    name = "L4D2 Safe Charger Damage",
+    author = "AI Assistant",
+    description = "Applies safe instant damage on grab with color notifications",
+    version = PLUGIN_VERSION,
+    url = ""
 };
-
-public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErrMax)
-{
-	EngineVersion iEngine = GetEngineVersion();
-	if (iEngine != Engine_Left4Dead2) {
-		strcopy(sError, iErrMax, "Plugin only supports Left 4 Dead 2.");
-		return APLRes_SilentFailure;
-	}
-
-	return APLRes_Success;
-}
 
 public void OnPluginStart()
 {
-	clvplus_charger_catch_dmg = CreateConVar("clvplus_charger_catch_dmg", "5.0", "Charger冲锋抓到生还者立即造成多少伤害", 0, true, 0.0);
-
-	GetCvar();
-
-	clvplus_charger_catch_dmg.AddChangeHook(ConvarChanged);
-
-	HookEvent("charger_carry_start", EventChargerCarryStart, EventHookMode_Post);
+    g_hChargeDamage = CreateConVar("l4d2_charge_damage", 
+        "5.0",
+        "Damage applied when charger grabs survivor", 
+        FCVAR_NOTIFY|FCVAR_SPONLY);
+    
+    HookEvent("charger_carry_start", EventChargerCarryStart, EventHookMode_Post);
+    AutoExecConfig(true, "l4d2_charge_damage");
 }
 
-void GetCvar() {
-	iDmgChargerCatch = clvplus_charger_catch_dmg.IntValue;
-}
-
-public void ConvarChanged(ConVar convar, const char[] oldValue, const char[] newValue) {
-	GetCvar();
-}
-
-public Action EventChargerCarryStart(Event hEvent, const char[] eName, bool dontBroadcast)
+public Action EventChargerCarryStart(Event event, const char[] name, bool dontBroadcast)
 {
-	int attacker = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-	int victim = GetClientOfUserId(GetEventInt(hEvent, "victim"));
-
-	// CPrintToChatAll("{default}[{blue}!{default}] {olive}%N {default}pounced {olive}%N {default}for {blue}%d {default}damage.", attacker, victim, iDmgChargerCatch);
-	CPrintToChatAll( "{green}★★ {olive}%N {red}pounced {olive}%N {default}({red}%i {default}dmg{default})", attacker, victim, iDmgChargerCatch);
-
-	int pHealth = GetSurvivorHardHealth(victim);
-	int tHealth = GetSurvivorTempHealth(victim);
-
-	if(pHealth + tHealth > iDmgChargerCatch)
-	{
-		if(tHealth > 0)
-		{
-			if(tHealth > iDmgChargerCatch)
-			{
-				tHealth -= iDmgChargerCatch;
-				SetSurvivorTempHealth(victim, tHealth);
-			}
-			else
-			{
-				SetSurvivorPermanentHealth(victim, pHealth - 5 + tHealth);
-				SetSurvivorTempHealth(victim, 0);
-			}
-		}
-		else
-		{
-			pHealth -= iDmgChargerCatch;
-			SetSurvivorPermanentHealth(victim, pHealth);
-		}
-	}
-	else
-	{
-		vIncapCheck(victim);
-	}
-	return Plugin_Continue;
+    int attacker = GetClientOfUserId(event.GetInt("userid"));
+    int victim = GetClientOfUserId(event.GetInt("victim"));
+    
+    // 二次有效性验证（防止事件延迟导致的问题）
+    if (!IsValidCharger(attacker) || !IsValidSurvivor(victim)) 
+    {
+        return Plugin_Continue;
+    }
+    
+    // 获取当前生命值并计算有效伤害
+    int currentHealth = GetClientHealth(victim);
+    float configDamage = g_hChargeDamage.FloatValue;
+    float actualDamage = float(currentHealth < RoundToFloor(configDamage) ? currentHealth : RoundToFloor(configDamage));
+    
+    // 应用安全伤害
+    if (actualDamage > 0.0)
+    {
+        SDKHooks_TakeDamage(victim, 
+            attacker,    // 伤害来源
+            attacker,    // 伤害发起者
+            actualDamage, 
+            VALID_DAMAGE_TYPES);
+        
+        // 获取安全名称（防止断开连接导致的格式错误）
+        char attackerName[32], victimName[32];
+        GetClientSafeName(attacker, attackerName, sizeof(attackerName));
+        GetClientSafeName(victim, victimName, sizeof(victimName));
+        
+        // 发送彩色通知
+        CPrintToChatAll("{green}★★ {olive}%s {default}charged {olive}%s {default}for {red}%.0f {default}damage!", 
+            attackerName, 
+            victimName, 
+            actualDamage);
+    }
+    return Plugin_Continue;
 }
 
-void vIncapCheck(int client)
+// 安全获取客户端名称
+void GetClientSafeName(int client, char[] buffer, int size)
 {
-	if(IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client) && !GetEntProp(client, Prop_Send, "m_isIncapacitated"))
-	{
-		int iSurvivoMaxInc = FindConVar("survivor_max_incapacitated_count").IntValue;
-		if(GetEntProp(client, Prop_Send, "m_currentReviveCount") >= iSurvivoMaxInc)
-		{
-			SetEntProp(client, Prop_Send, "m_currentReviveCount", iSurvivoMaxInc - 1);
-			SetEntProp(client, Prop_Send, "m_isGoingToDie", 0);
-			SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
-			StopSound(client, SNDCHAN_STATIC, "player/heartbeatloop.wav");
-		}
-		vIncapPlayer(client);
-	}
+    if (IsValidClient(client))
+    {
+        GetClientName(client, buffer, size);
+    }
+    else
+    {
+        Format(buffer, size, "Disconnected Player");
+    }
 }
 
-void vIncapPlayer(int client) 
+// 增强型客户端验证
+bool IsValidClient(int client)
 {
-	SetEntityHealth(client, 1);
-	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
-	SDKHooks_TakeDamage(client, 0, 0, 100.0);
+    return (client > 0 && 
+           client <= MaxClients && 
+           IsClientInGame(client) && 
+           !IsFakeClient(client));
 }
 
-int GetSurvivorHardHealth(int client)
+bool IsValidCharger(int client)
 {
-	return GetEntProp(client, Prop_Send, "m_iHealth");
+    return (IsValidClient(client) && 
+           GetClientTeam(client) == 3 && 
+           GetEntProp(client, Prop_Send, "m_zombieClass") == 6);
 }
 
-int GetSurvivorTempHealth(int client)
+bool IsValidSurvivor(int client)
 {
-	int temphp = RoundToCeil(GetEntPropFloat(client, Prop_Send, "m_healthBuffer") - ((GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_healthBufferTime")) * GetConVarFloat(FindConVar("pain_pills_decay_rate")))) - 1;
-	return (temphp > 0 ? temphp : 0);
-}
-
-void SetSurvivorPermanentHealth(int client, int health)
-{
-	SetEntProp(client, Prop_Send, "m_iHealth", health);
-}
-
-void SetSurvivorTempHealth(int client, int health)
-{
-	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", float(health));
-	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+    return (IsValidClient(client) && 
+           GetClientTeam(client) == 2 && 
+           IsPlayerAlive(client));
 }
