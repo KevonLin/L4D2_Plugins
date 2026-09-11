@@ -74,6 +74,7 @@ bool
     g_cvarReady,
     g_bDebug,
     g_bVoteEnable[MAXPLAYERS + 1],
+    g_bMatchModesAvailable,
     g_cvarGiveHP,
     g_cvarGivePills,
     g_cvarChangeSlots,
@@ -115,7 +116,7 @@ public Plugin myinfo =
     name        = "Vote Menu",
     author      = "Kevonlin",
     description = "Vote Menu.",
-    version     = "2.2.4",
+    version     = "2.2.5",
     url         = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -135,79 +136,31 @@ public void OnPluginStart()
 {
     ParseCustomCampaigns();
     ParseNextCampaigns();
+    CheckMatchModeConfigs();
+    LoadingTranslations();
+    CreateConVars();
+    GetConVars();
+    HookConVarChanges();
+    HookEvents();
+    RegConsoleCmds();
 
-    char sPath[PLATFORM_MAX_PATH];
-    BuildPath(Path_SM, sPath, sizeof(sPath), "translations/" ... TRANSLATION_FILE... ".txt");
-    if (!FileExists(sPath))
-    {
-        SetFailState("Missing translation \"" ... TRANSLATION_FILE... "\"");
-    }
-    LoadTranslations(TRANSLATION_FILE);
+    AutoExecConfig(true, "l4d2_votemenu");
+}
 
-    char sBuffer[PLATFORM_MAX_PATH];
-    g_hModesKV = new KeyValues("MatchModes");
-    BuildPath(Path_SM, sBuffer, sizeof(sBuffer), MATCHMODES_PATH);
+void RegConsoleCmds()
+{
+    RegConsoleCmd("sm_votemenu", Command_Votes, "Open vote menu.");
+    RegConsoleCmd("sm_votes", Command_Votes, "Open vote menu.");
+}
 
-    if (!g_hModesKV.ImportFromFile(sBuffer))
-    {
-        SetFailState("Couldn't load matchmodes.txt!");
-    }
+void HookEvents()
+{
+    HookEvent("round_start", RoundStart_Event, EventHookMode_PostNoCopy);
+    HookEvent("round_end", RoundEnd_Event, EventHookMode_PostNoCopy);
+}
 
-    sm_votemenu_enable              = CreateConVar("sm_votemenu_enable", "1", "Plugin Enable");
-    sm_votemenu_timedelay           = CreateConVar("sm_votemenu_timedelay", "30.0", "Vote time interval", 0, true, 0.0);
-    sm_votemenu_givehp              = CreateConVar("sm_votemenu_givehp", "1", "Give hp Enable");
-    sm_votemenu_pills               = CreateConVar("sm_votemenu_pills", "1", "Give hp Enable");
-    sm_votemenu_changeslots         = CreateConVar("sm_votemenu_changeslots", "1", "Change slots Enable");
-    sm_votemenu_nextmap             = CreateConVar("sm_votemenu_nextmap", "1", "Change next map Enable");
-    sm_votemenu_changecustommaps    = CreateConVar("sm_votemenu_changecustommaps", "1", "Change custom maps Enable");
-    sm_votemenu_ban                 = CreateConVar("sm_votemenu_ban", "1", "Ban Enable");
-    sm_votemenu_kick                = CreateConVar("sm_votemenu_kick", "1", "Kick Enable");
-    sm_votemenu_mute                = CreateConVar("sm_votemenu_mute", "1", "Mute Enable");
-    sm_votemenu_toggleaddons        = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
-    sm_votemenu_toggleready         = CreateConVar("sm_votemenu_toggleready", "0", "Toggle ready Enable");
-    sm_votemenu_changeconfigs       = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
-    // sm_votemenu_togglelerpfilter = CreateConVar("sm_votemenu_togglelerpfilter", "1", "Toggle lerp filter Enable");
-    sm_match_player_limit           = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
-    sm_votemenu_nextmap_timer_delay = CreateConVar("sm_votemenu_nextmap_timer_delay", "8.0", "Change next map timer delay", _, true, 0.0);
-    l4d_votemenu_debug              = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
-
-    IsConfoglAvailable              = LibraryExists("confogl");
-
-    cvarMvMaxPlayers                = FindConVar("sv_maxplayers");
-    cvarAddons                      = FindConVar("l4d2_addons_eclipse");
-    if (IsConfoglAvailable)
-    {
-        cvarReady = FindConVar("l4d_ready_enabled");
-        // cvarLerpFilter = FindConVar("sm_filter_kick_enable");
-    }
-
-    g_cvarGiveHP            = GetConVarBool(sm_votemenu_givehp);
-    g_cvarGivePills         = GetConVarBool(sm_votemenu_pills);
-    g_cvarChangeSlots       = GetConVarBool(sm_votemenu_changeslots);
-    g_cvarNextMap           = GetConVarBool(sm_votemenu_nextmap);
-    g_cvarCustomMap         = GetConVarBool(sm_votemenu_changecustommaps);
-    g_cvarBan               = GetConVarBool(sm_votemenu_ban);
-    g_cvarKick              = GetConVarBool(sm_votemenu_kick);
-    g_cvarMute              = GetConVarBool(sm_votemenu_mute);
-    g_cvarToggleAddons      = GetConVarBool(sm_votemenu_toggleaddons);
-    g_cvarToggleReady       = GetConVarBool(sm_votemenu_toggleready);
-    g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
-    g_cvarChangeConfigs     = GetConVarBool(sm_votemenu_changeconfigs);
-    // g_bCvarToggleLerpFilter = GetConVarBool(sm_votemenu_togglelerpfilter);
-    g_bDebug                = GetConVarBool(l4d_votemenu_debug);
-    g_cvarAddons            = GetConVarInt(cvarAddons);
-
-    if (IsConfoglAvailable)
-    {
-        g_cvarReady = GetConVarBool(cvarReady);
-        // g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
-    }
-    // if (cvarReady != INVALID_HANDLE)
-    // 	g_cvarReady = GetConVarBool(cvarReady);
-
-    // if (cvarLerpFilter != INVALID_HANDLE)
-    // 	g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
-
+void HookConVarChanges()
+{
     HookConVarChange(sm_votemenu_givehp, CVarChanged);
     HookConVarChange(sm_votemenu_pills, CVarChanged);
     HookConVarChange(sm_votemenu_changeslots, CVarChanged);
@@ -229,19 +182,114 @@ public void OnPluginStart()
         HookConVarChange(sm_votemenu_toggleready, CVarChanged);
         // HookConVarChange(cvarLerpFilter, CVarChanged);
     }
+}
 
-    HookEvent("round_start", RoundStart_Event, EventHookMode_PostNoCopy);
-    HookEvent("round_end", RoundEnd_Event, EventHookMode_PostNoCopy);
+void CreateConVars()
+{
+    sm_votemenu_enable              = CreateConVar("sm_votemenu_enable", "1", "Plugin Enable");
+    sm_votemenu_timedelay           = CreateConVar("sm_votemenu_timedelay", "30.0", "Vote time interval", 0, true, 0.0);
+    sm_votemenu_givehp              = CreateConVar("sm_votemenu_givehp", "1", "Give hp Enable");
+    sm_votemenu_pills               = CreateConVar("sm_votemenu_pills", "1", "Give hp Enable");
+    sm_votemenu_changeslots         = CreateConVar("sm_votemenu_changeslots", "1", "Change slots Enable");
+    sm_votemenu_nextmap             = CreateConVar("sm_votemenu_nextmap", "1", "Change next map Enable");
+    sm_votemenu_changecustommaps    = CreateConVar("sm_votemenu_changecustommaps", "1", "Change custom maps Enable");
+    sm_votemenu_ban                 = CreateConVar("sm_votemenu_ban", "1", "Ban Enable");
+    sm_votemenu_kick                = CreateConVar("sm_votemenu_kick", "1", "Kick Enable");
+    sm_votemenu_mute                = CreateConVar("sm_votemenu_mute", "1", "Mute Enable");
+    sm_votemenu_toggleaddons        = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
+    sm_votemenu_toggleready         = CreateConVar("sm_votemenu_toggleready", "0", "Toggle ready Enable");
+    sm_votemenu_changeconfigs       = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
+    // sm_votemenu_togglelerpfilter = CreateConVar("sm_votemenu_togglelerpfilter", "1", "Toggle lerp filter Enable");
+    sm_match_player_limit           = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
+    sm_votemenu_nextmap_timer_delay = CreateConVar("sm_votemenu_nextmap_timer_delay", "8.0", "Change next map timer delay", _, true, 0.0);
+    l4d_votemenu_debug              = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
+}
 
-    RegConsoleCmd("sm_votemenu", Command_Votes, "Open vote menu.");
-    RegConsoleCmd("sm_votes", Command_Votes, "Open vote menu.");
+void GetConVars()
+{
+    IsConfoglAvailable = LibraryExists("confogl");
 
-    AutoExecConfig(true, "l4d2_votemenu");
+    cvarMvMaxPlayers   = FindConVar("sv_maxplayers");
+    cvarAddons         = FindConVar("l4d2_addons_eclipse");
+    if (IsConfoglAvailable)
+    {
+        cvarReady = FindConVar("l4d_ready_enabled");
+        // cvarLerpFilter = FindConVar("sm_filter_kick_enable");
+    }
+
+    g_cvarGiveHP            = GetConVarBool(sm_votemenu_givehp);
+    g_cvarGivePills         = GetConVarBool(sm_votemenu_pills);
+    g_cvarChangeSlots       = GetConVarBool(sm_votemenu_changeslots);
+    g_cvarNextMap           = GetConVarBool(sm_votemenu_nextmap);
+    g_cvarCustomMap         = GetConVarBool(sm_votemenu_changecustommaps);
+    g_cvarBan               = GetConVarBool(sm_votemenu_ban);
+    g_cvarKick              = GetConVarBool(sm_votemenu_kick);
+    g_cvarMute              = GetConVarBool(sm_votemenu_mute);
+    g_cvarToggleAddons      = GetConVarBool(sm_votemenu_toggleaddons);
+    g_cvarToggleReady       = GetConVarBool(sm_votemenu_toggleready);
+    g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
+    g_cvarChangeConfigs     = GetConVarBool(sm_votemenu_changeconfigs) && g_bMatchModesAvailable;
+    // g_bCvarToggleLerpFilter = GetConVarBool(sm_votemenu_togglelerpfilter);
+    g_bDebug                = GetConVarBool(l4d_votemenu_debug);
+    g_cvarAddons            = GetConVarInt(cvarAddons);
+
+    if (IsConfoglAvailable)
+    {
+        g_cvarReady = GetConVarBool(cvarReady);
+        // g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
+    }
+    // if (cvarReady != INVALID_HANDLE)
+    // 	g_cvarReady = GetConVarBool(cvarReady);
+
+    // if (cvarLerpFilter != INVALID_HANDLE)
+    // 	g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
+}
+
+void CheckMatchModeConfigs()
+{
+    if (g_hModesKV != null)
+    {
+        delete g_hModesKV;
+        g_hModesKV = null;
+    }
+    g_bMatchModesAvailable = false;
+
+    char sPath[PLATFORM_MAX_PATH];
+    BuildPath(Path_SM, sPath, sizeof(sPath), MATCHMODES_PATH);
+    if (!FileExists(sPath))
+    {
+        LogMessage("[Vote] matchmodes.txt not found, changeconfigs will be disabled.");
+        return;
+    }
+
+    KeyValues kv = new KeyValues("MatchModes");
+    if (!kv.ImportFromFile(sPath))
+    {
+        LogError("[Vote] matchmodes.txt exists but failed to parse, changeconfigs disabled.");
+        delete kv;
+        return;
+    }
+
+    g_hModesKV             = kv;
+    g_bMatchModesAvailable = true;
+}
+
+void LoadingTranslations()
+{
+    char sPath[PLATFORM_MAX_PATH];
+    BuildPath(Path_SM, sPath, sizeof(sPath), "translations/" ... TRANSLATION_FILE... ".txt");
+    if (!FileExists(sPath))
+    {
+        SetFailState("Missing translation \"" ... TRANSLATION_FILE... "\"");
+    }
+    LoadTranslations(TRANSLATION_FILE);
 }
 
 public void OnConfigsExecuted()
 {
     IsConfoglAvailable = LibraryExists("confogl");
+    CheckMatchModeConfigs();
+    g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs) && g_bMatchModesAvailable;
 }
 
 public void OnClientPostAdminCheck(int client)
@@ -287,51 +335,9 @@ public Action Timer_ChangeVoteNextMap(Handle timer, any data)
     return Plugin_Handled;
 }
 
-// public void OnMapStart()
-// {
-// for(int i = 1; i < MaxClients; i ++)
-// {
-// 	if(IsFakeClient(i)) continue;
-// 	g_bVoteEnable[i] = true;
-// }
-// }
-
-// public void OnMapEnd()
-// {
-// 	for(int i = 1; i < MaxClients; i ++)
-// 	{
-// 		if(IsFakeClient(i)) continue;
-// 		g_bVoteEnable[i] = false;
-// 	}
-// }
 public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 {
-    IsConfoglAvailable = LibraryExists("confogl");
-
-    g_cvarAddons       = GetConVarInt(cvarAddons);
-    if (IsConfoglAvailable)
-    {
-        g_cvarReady = GetConVarBool(cvarReady);
-        // g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
-    }
-    // if (cvarReady != INVALID_HANDLE)
-    // 	g_cvarReady = GetConVarBool(cvarReady);
-    // if (cvarLerpFilter != INVALID_HANDLE)
-    // 	g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
-
-    g_cvarGiveHP            = GetConVarBool(sm_votemenu_givehp);
-    g_cvarGivePills         = GetConVarBool(sm_votemenu_pills);
-    g_cvarChangeSlots       = GetConVarBool(sm_votemenu_changeslots);
-    g_cvarNextMap           = GetConVarBool(sm_votemenu_nextmap);
-    g_cvarCustomMap         = GetConVarBool(sm_votemenu_changecustommaps);
-    g_cvarBan               = GetConVarBool(sm_votemenu_ban);
-    g_cvarKick              = GetConVarBool(sm_votemenu_kick);
-    g_cvarMute              = GetConVarBool(sm_votemenu_mute);
-    g_cvarToggleAddons      = GetConVarBool(sm_votemenu_toggleaddons);
-    g_cvarToggleReady       = GetConVarBool(sm_votemenu_toggleready);
-    g_cvarChangeConfigs     = GetConVarBool(sm_votemenu_changeconfigs);
-    // g_bCvarToggleLerpFilter = GetConVarBool(sm_votemenu_togglelerpfilter);
-    g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
+    GetConVars();
 }
 
 public Action Command_Votes(int iClient, int iArgs)
@@ -514,7 +520,7 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
             }
             else if (strcmp(item, "changecustommaps") == 0)
             {
-                if (!g_cvarNextMap)
+                if (!g_cvarCustomMap)
                 {
                     CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
                     BuildVoteMenu(param1);
