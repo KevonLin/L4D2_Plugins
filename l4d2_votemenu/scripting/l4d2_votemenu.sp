@@ -110,7 +110,7 @@ public Plugin myinfo =
     name        = "Vote Menu",
     author      = "Kevonlin",
     description = "Vote Menu.",
-    version     = "2.2.5",
+    version     = "2.2.7",
     url         = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -308,10 +308,10 @@ public void RoundEnd_Event(Event hEvent, const char[] eName, bool dontBroadcast)
 
 public Action Timer_ChangeVoteNextMap(Handle timer, any data)
 {
-    if (strcmp(g_sVoteNextMapIndex, "") != 0)
+    if (strcmp(g_sVoteNextMapCmdIndex, "none") != 0)
     {
-        g_sVoteNextMapIndex = "";
         ServerCommand("changelevel %s", g_sVoteNextMapCmdIndex);
+        g_sVoteNextMapCmdIndex = "none";
     }
     return Plugin_Handled;
 }
@@ -1354,9 +1354,16 @@ public void VoteResultHandler(Handle vote, int num_votes, int num_clients,
         {
             if (item_info[i][BUILTINVOTEINFO_ITEM_VOTES] > (num_votes / 2))
             {
-                CreateTimer(3.0, ExecVoteRes, _);
+                DataPack dp = new DataPack();
+                dp.WriteCell(g_voteType);
+                dp.WriteCell(g_iSlots);
+                dp.WriteString(g_sVoteNextMapIndex);
+                dp.WriteString(g_sVoteNextMapName);
+                dp.WriteString(g_sVoteCustomMapIndex);
+                dp.WriteString(g_sVoteCustomMapName);
+                dp.WriteCell(g_selectClient);
+                CreateTimer(3.0, ExecVoteRes, dp);
                 DisplayBuiltinVotePass(vote, "Vote Pass");
-                // ExecVoteRes(vote);
                 return;
             }
         }
@@ -1365,9 +1372,28 @@ public void VoteResultHandler(Handle vote, int num_votes, int num_clients,
     DisplayBuiltinVoteFail(vote, BuiltinVoteFail_Loses);
 }
 
-public Action ExecVoteRes(Handle timer, any client)
+public Action ExecVoteRes(Handle timer, any data)
 {
-    switch (g_voteType)
+    DataPack dp = view_as<DataPack>(data);
+    dp.Reset();
+    int  iVoteType = dp.ReadCell();
+    int  iSlots    = dp.ReadCell();
+    char sVoteNextMapIndex[MAX_NAME_LENGTH];
+    dp.ReadString(sVoteNextMapIndex, MAX_NAME_LENGTH);
+
+    char sVoteNextMapName[MAX_NAME_LENGTH];
+    dp.ReadString(sVoteNextMapName, MAX_NAME_LENGTH);
+
+    char sVoteCustomMapIndex[MAX_NAME_LENGTH];
+    dp.ReadString(sVoteCustomMapIndex, MAX_NAME_LENGTH);
+
+    char sVoteCustomMapName[MAX_NAME_LENGTH];
+    dp.ReadString(sVoteCustomMapName, MAX_NAME_LENGTH);
+
+    int iSelectClient = dp.ReadCell();
+
+    delete dp;
+    switch (iVoteType)
     {
         case (view_as<voteType>(hp)):
         {
@@ -1383,38 +1409,38 @@ public Action ExecVoteRes(Handle timer, any client)
 
         case (view_as<voteType>(slots)):
         {
-            ChangeSlots();
+            ChangeSlots(iSlots);
             LogMessage("Vote to change slots pass");
         }
 
         case (view_as<voteType>(nextmap)):
         {
-            ChangeNextMap();
+            ChangeNextMap(sVoteNextMapIndex, sVoteNextMapName);
             LogMessage("Vote next map pass");
         }
 
         case (view_as<voteType>(custommap)):
         {
-            ChangeCustomMap();
-            LogMessage("Vote to change custom map [%s] pass", g_sVoteCustomMapName);
+            ChangeCustomMap(sVoteCustomMapIndex, sVoteCustomMapName);
+            LogMessage("Vote to change custom map [%s] pass", sVoteCustomMapName);
         }
 
         case (view_as<voteType>(ban)):
         {
-            BanPlayer();
-            LogMessage("Vote to ban player [%s] pass", g_selectClient);
+            BanPlayer(iSelectClient);
+            LogMessage("Vote to ban player [%N] pass", iSelectClient);
         }
 
         case (view_as<voteType>(kick)):
         {
-            KickPlayer();
-            LogMessage("Vote to kick player [%s] pass", g_selectClient);
+            KickPlayer(iSelectClient);
+            LogMessage("Vote to kick player [%N] pass", iSelectClient);
         }
 
         case (view_as<voteType>(mute)):
         {
-            MutePlayer();
-            LogMessage("Vote to mute player [%s] pass", g_selectClient);
+            MutePlayer(iSelectClient);
+            LogMessage("Vote to mute player [%N] pass", iSelectClient);
         }
 
         case (view_as<voteType>(addons)):
@@ -1435,8 +1461,6 @@ public Action ExecVoteRes(Handle timer, any client)
             // 	LogMessage("Vote to change [%s] config pass", g_sCfg);
             // }
     }
-
-    g_voteType = view_as<voteType>(none);
 
     return Plugin_Handled;
 }
@@ -1495,47 +1519,57 @@ void GivePills()
     CPrintToChatAll("{blue}[{default}Vote{blue}] {olive}Pills {default}has distributed to {blue}All survivors");
 }
 
-void ChangeSlots()
+void ChangeSlots(int iSlots)
 {
-    SetConVarInt(cvarMvMaxPlayers, g_iSlots);
-    CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Slots {default}has limited to {blue}%i", g_iSlots);
+    SetConVarInt(cvarMvMaxPlayers, iSlots);
+    CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Slots {default}has limited to {blue}%i", iSlots);
 }
 
-void ChangeNextMap()
+void ChangeNextMap(const char[] mapIndex, const char[] mapName)
 {
-    g_sVoteNextMapCmdIndex = g_sVoteNextMapIndex;
-    CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Next map set to {blue}%s", g_sVoteNextMapName);
+    strcopy(g_sVoteNextMapCmdIndex, sizeof(g_sVoteNextMapCmdIndex), mapIndex);
+    CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Next map set to {blue}%s", mapName);
 }
 
-void ChangeCustomMap()
+void ChangeCustomMap(const char[] mapIndex, const char[] mapName)
 {
-    CreateTimer(3.0, Timer_ChangeCustomMapDelay, _);
-    CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Map will change to {blue}%s {default}in {blue}3s", g_sVoteCustomMapName);
+    DataPack dp = new DataPack();
+    dp.WriteString(mapIndex);
+    CreateTimer(3.0, Timer_ChangeCustomMapDelay, dp);
+    CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Map will change to {blue}%s {default}in {blue}3s", mapName);
 }
 
-void BanPlayer()
+Action Timer_ChangeCustomMapDelay(Handle timer, any data)
 {
-    if (!IsClientInGame(g_selectClient) || IsFakeClient(g_selectClient)) return;
+    DataPack dp = view_as<DataPack>(data);
+    dp.Reset();
+    char mapIndex[MAX_NAME_LENGTH];
+    dp.ReadString(mapIndex, sizeof(mapIndex));
+    delete dp;
+    ServerCommand("changelevel %s", mapIndex);
+    return Plugin_Handled;
+}
+
+void BanPlayer(int iSelectClient)
+{
+    if (!IsClientInGame(iSelectClient) || IsFakeClient(iSelectClient)) return;
     // BanClient(g_selectClient, 30, BANFLAG_AUTO, "Vote", "You habe been banned for 30 min.", "sm_ban");
-    ServerCommand("sm_ban %i 30 Vote", g_selectClient);
-    CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been banned for 30 min.", g_selectClient);
-    g_selectClient = 0;
+    ServerCommand("sm_ban %i 30 Vote", iSelectClient);
+    CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been banned for 30 min.", iSelectClient);
 }
 
-void KickPlayer()
+void KickPlayer(int iSelectClient)
 {
-    if (!IsClientInGame(g_selectClient) || IsFakeClient(g_selectClient)) return;
-    KickClient(g_selectClient, "You have been vote off.");
-    CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been voted off.", g_selectClient);
-    g_selectClient = 0;
+    if (!IsClientInGame(iSelectClient) || IsFakeClient(iSelectClient)) return;
+    KickClient(iSelectClient, "You have been vote off.");
+    CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been voted off.", iSelectClient);
 }
 
-void MutePlayer()
+void MutePlayer(int iSelectClient)
 {
-    if (!IsClientInGame(g_selectClient) || IsFakeClient(g_selectClient)) return;
-    ServerCommand("sm_mute %i 30 Vote", g_selectClient);
-    CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been muted.", g_selectClient);
-    g_selectClient = 0;
+    if (!IsClientInGame(iSelectClient) || IsFakeClient(iSelectClient)) return;
+    ServerCommand("sm_mute %i 30 Vote", iSelectClient);
+    CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been muted.", iSelectClient);
 }
 
 void ToggleAddons()
@@ -1577,13 +1611,6 @@ public Action RestartMap(Handle timer, any client)
     char currentMap[256];
     GetCurrentMap(currentMap, 256);
     ServerCommand("changelevel %s", currentMap);
-
-    return Plugin_Continue;
-}
-
-public Action Timer_ChangeCustomMapDelay(Handle timer, any client)
-{
-    ServerCommand("changelevel %s", g_sVoteCustomMapIndex);
 
     return Plugin_Continue;
 }
