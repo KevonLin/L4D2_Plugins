@@ -4,6 +4,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <left4dhooks>
+#include <colors>
 
 #define TEAM_SPECTATOR 1
 #define TEAM_SURVIVOR 2
@@ -31,8 +32,6 @@ public void OnPluginStart()
 {
     RegConsoleCmd("sm_join", Command_JoinMenu);
     
-    HookEvent("player_team", Event_PlayerTeam);
-    
     g_hJoinQueue = new ArrayList(sizeof(QueueInfo));
 }
 
@@ -52,22 +51,13 @@ public void OnClientDisconnect(int client)
     TryFillSlots();
 }
 
-public Action Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
-{
-    int client = GetClientOfUserId(event.GetInt("userid"));
-    if(client && IsClientInGame(client))
-    {
-        int newteam = event.GetInt("team");
-        if(newteam == TEAM_SPECTATOR)
-        {
-            CreateTimer(0.1, Timer_ShowMenu, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
-        }
-    }
-    return Plugin_Continue;
-}
-
 public Action Command_JoinMenu(int client, int args)
 {
+    if(GetClientTeam(client) != TEAM_SPECTATOR)
+    {
+        CPrintToChat(client, "{green}[SM] {default}你已在游戏中! ");
+        return Plugin_Handled;
+    }
     if(!client || !IsClientInGame(client)) return Plugin_Handled;
     
     ShowJoinMenu(client);
