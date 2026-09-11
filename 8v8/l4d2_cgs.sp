@@ -9,7 +9,7 @@
 #define DEBUG 0
 #define DEFAULT_CHARGER_SPEED_FACTOR 1.00
 float g_fChargerSpeedFactor[MAXPLAYERS + 1] = { 1.00, ... };
-int g_iPlayerInfectedScore[MAXPLAYERS + 1] = { 0, ...};
+int g_iPlayerChargerScore[MAXPLAYERS + 1] = { 0, ...};
 
 ConVar g_hIncreasedPerHealth,
     g_hIncreasedFactor;
@@ -30,6 +30,7 @@ public void OnPluginStart() {
     g_hIncreasedPerHealth = CreateConVar("charger_increased_speed_per_damage", "5", "Changer每造成多少伤害提高速度倍率, 0=禁用", FCVAR_NOTIFY, true, 0.0, true, 100.0);
     g_hIncreasedFactor = CreateConVar("charger_increased_speed_factor", "0.01", "影响速度的倍率, 0=禁用", FCVAR_NOTIFY, true, 0.0, true, 100.0);
     
+    HookEvent("player_death", Event_PlayerDeath_Post, EventHookMode_Post);
     HookEvent("player_hurt", Event_PlayerHurt_Post, EventHookMode_Post);
     HookEvent("ability_use", Event_AbilityUse_Post, EventHookMode_Post);
     HookEvent("charger_charge_end", Event_ChargerChargeEnd_Pre, EventHookMode_Pre);
@@ -77,19 +78,29 @@ void Event_ChargerChargeEnd_Pre (Event event, const char[] name, bool dontBroadc
 public void OnClientPutInServer(int client) {
     if(!IsValidClientIndex(client)) return;
     g_fChargerSpeedFactor[client] = DEFAULT_CHARGER_SPEED_FACTOR;
-    g_iPlayerInfectedScore[client] = 0;
+    g_iPlayerChargerScore[client] = 0;
 }
 
 public void OnClientDisconnect(int client) {
     if(!IsValidClientIndex(client)) return;
     g_fChargerSpeedFactor[client] = DEFAULT_CHARGER_SPEED_FACTOR;
-    g_iPlayerInfectedScore[client] = 0;
+    g_iPlayerChargerScore[client] = 0;
 }
 
 public Action Event_RoundStart(Event event, const char[] name, bool dontBroadcast){
     for(int i = 0; i <= MaxClients; i++) {
+        if (!IsValidClientIndex(i) || !IsClientInGame(i)) return Plugin_Continue;
         g_fChargerSpeedFactor[i] = DEFAULT_CHARGER_SPEED_FACTOR;
-        g_iPlayerInfectedScore[i] = 0;
+        g_iPlayerChargerScore[i] = 0;
+    }
+    return Plugin_Continue;
+}
+
+public Action Event_PlayerDeath_Post(Event event, const char[] name, bool dontBroadcast) {
+    for(int i = 0; i <= MaxClients; i++) {
+        if (!IsValidClientIndex(i) || !IsClientInGame(i)) return Plugin_Continue;
+        g_fChargerSpeedFactor[i] = DEFAULT_CHARGER_SPEED_FACTOR;
+        g_iPlayerChargerScore[i] = 0;
     }
     return Plugin_Continue;
 }
@@ -99,11 +110,11 @@ public Action Event_PlayerHurt_Post(Event event, const char[] name, bool dontBro
     if (!IsValidClientIndex(client) || !IsClientInGame(client)) return Plugin_Continue;
     if (GetClientTeam(client) != view_as<int>(L4DTeam_Infected) || GetInfectedClass(client) != view_as<int>(L4D2ZombieClass_Charger)) return Plugin_Continue;
     if (IsClientIncapacitated(client)) return Plugin_Continue;
-    
+
     int damage = event.GetInt("dmg_health");
 
-    g_iPlayerInfectedScore[client] += damage;
-    g_fChargerSpeedFactor[client] = DEFAULT_CHARGER_SPEED_FACTOR +  (g_iPlayerInfectedScore[client] / g_increasedPerHealth) * g_fIncreasedFactor;
+    g_iPlayerChargerScore[client] += damage;
+    g_fChargerSpeedFactor[client] = DEFAULT_CHARGER_SPEED_FACTOR +  (g_iPlayerChargerScore[client] / g_increasedPerHealth) * g_fIncreasedFactor;
 
     return Plugin_Continue;
 }
