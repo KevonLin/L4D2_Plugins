@@ -39,7 +39,6 @@ ConVar
     sm_votemenu_mute,
     sm_votemenu_toggleaddons,
     sm_votemenu_toggleready,
-    // sm_votemenu_togglelerpfilter,
     sm_votemenu_changeconfigs,
     sm_match_player_limit,
     sm_votemenu_nextmap_timer_delay,
@@ -47,10 +46,8 @@ ConVar
     cvarMvMaxPlayers,
     cvarAddons,
     cvarReady;
-// cvarLerpFilter;
 
 char
-    // g_sCfg[32],
     g_sSlots[64],
     g_customMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
     g_customMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
@@ -85,9 +82,7 @@ bool
     g_cvarMute,
     g_cvarToggleAddons,
     g_cvarToggleReady,
-    // g_bCvarToggleLerpFilter,
     g_cvarChangeConfigs;
-// g_bCvarLerpFilter;
 
 float
     g_cvarNextMapTimerDelay;
@@ -106,7 +101,6 @@ enum voteType
     addons,
     ready,
     config
-    // lerp
 }
 
 voteType g_voteType = none;
@@ -171,16 +165,10 @@ void HookConVarChanges()
     HookConVarChange(sm_votemenu_mute, CVarChanged);
     HookConVarChange(sm_votemenu_toggleaddons, CVarChanged);
     HookConVarChange(sm_votemenu_nextmap_timer_delay, CVarChanged);
-    // if (cvarReady != INVALID_HANDLE)
-    // 	HookConVarChange(sm_votemenu_toggleready, CVarChanged);
     HookConVarChange(cvarAddons, CVarChanged);
-    // HookConVarChange(sm_votemenu_togglelerpfilter, CVarChanged);
-    // if (cvarLerpFilter != INVALID_HANDLE)
-    // 	HookConVarChange(cvarLerpFilter, CVarChanged);
     if (IsConfoglAvailable)
     {
         HookConVarChange(sm_votemenu_toggleready, CVarChanged);
-        // HookConVarChange(cvarLerpFilter, CVarChanged);
     }
 }
 
@@ -199,7 +187,6 @@ void CreateConVars()
     sm_votemenu_toggleaddons        = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
     sm_votemenu_toggleready         = CreateConVar("sm_votemenu_toggleready", "0", "Toggle ready Enable");
     sm_votemenu_changeconfigs       = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
-    // sm_votemenu_togglelerpfilter = CreateConVar("sm_votemenu_togglelerpfilter", "1", "Toggle lerp filter Enable");
     sm_match_player_limit           = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
     sm_votemenu_nextmap_timer_delay = CreateConVar("sm_votemenu_nextmap_timer_delay", "8.0", "Change next map timer delay", _, true, 0.0);
     l4d_votemenu_debug              = CreateConVar("l4d_votemenu_debug", "0", "Enable debug and kick do not have Admin flag", 0, true, 0.0, true, 1.0);
@@ -214,7 +201,6 @@ void GetConVars()
     if (IsConfoglAvailable)
     {
         cvarReady = FindConVar("l4d_ready_enabled");
-        // cvarLerpFilter = FindConVar("sm_filter_kick_enable");
     }
 
     g_cvarGiveHP            = GetConVarBool(sm_votemenu_givehp);
@@ -229,20 +215,15 @@ void GetConVars()
     g_cvarToggleReady       = GetConVarBool(sm_votemenu_toggleready);
     g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
     g_cvarChangeConfigs     = GetConVarBool(sm_votemenu_changeconfigs) && g_bMatchModesAvailable;
-    // g_bCvarToggleLerpFilter = GetConVarBool(sm_votemenu_togglelerpfilter);
     g_bDebug                = GetConVarBool(l4d_votemenu_debug);
     g_cvarAddons            = GetConVarInt(cvarAddons);
 
     if (IsConfoglAvailable)
     {
         g_cvarReady = GetConVarBool(cvarReady);
-        // g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
     }
     // if (cvarReady != INVALID_HANDLE)
     // 	g_cvarReady = GetConVarBool(cvarReady);
-
-    // if (cvarLerpFilter != INVALID_HANDLE)
-    // 	g_bCvarLerpFilter = GetConVarBool(cvarLerpFilter);
 }
 
 void CheckMatchModeConfigs()
@@ -424,11 +405,6 @@ void BuildVoteMenu(int iClient)
         FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready", iClient);
         vMenu.AddItem("toggleready", sBuffer);
     }
-    // if (g_bCvarToggleLerpFilter)
-    // {
-    // 	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle lerp filter", iClient);
-    // 	vMenu.AddItem("togglelerpfilter", sBuffer);
-    // }
 
     if (g_cvarChangeConfigs)
     {
@@ -599,23 +575,10 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
                 if (!g_cvarChangeConfigs)
                 {
                     CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    // CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}Use !rmatch and !match to load a config.");
-                    // BuildVoteMenu(param1);
                     return 0;
                 }
                 FakeClientCommand(param1, "sm_chmatch");
-                // MatchModeMenu(param1);
             }
-            // else if (strcmp(item, "togglelerpfilter") == 0)
-            // {
-            // 	if (!g_bCvarToggleLerpFilter)
-            // 	{
-            // 		CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-            // 		BuildVoteMenu(param1);
-            // 		return 0;
-            // 	}
-            // 	ToggleLerpFilterMenu(param1);
-            // }
         }
     }
     return 0;
@@ -1244,204 +1207,6 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
     return 0;
 }
 
-// void ToggleLerpFilterMenu(int iClient)
-// {
-// 	char sBuffer[64];
-// 	Menu vMenu = new Menu(LerpFilterMenuHandler);
-// 	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle lerp filter", iClient);
-// 	vMenu.SetTitle(sBuffer);
-
-// 	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable lerp filter", iClient);
-// 	vMenu.AddItem("enablefilter", sBuffer);
-// 	FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable lerp filter", iClient);
-// 	vMenu.AddItem("disablefilter", sBuffer);
-
-// 	vMenu.ExitBackButton = true;
-// 	vMenu.ExitButton = true;
-// 	vMenu.Display(iClient, 30);
-// }
-
-// public int LerpFilterMenuHandler(Menu menu, MenuAction action, int param1, int param2)
-// {
-// 	if (action == MenuAction_End) {
-// 		delete menu;
-// 	} else if (action == MenuAction_Cancel){
-// 		BuildVoteMenu(param1);
-// 	} else if (action == MenuAction_Select) {
-// 		g_voteType = view_as<voteType>(lerp);
-
-// 		char item[64];
-// 		menu.GetItem(param2, item, sizeof(item));
-
-// 		if(strcmp(item, "enablefilter") == 0)
-// 		{
-// 			if (g_bCvarLerpFilter)
-// 			{
-// 				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Lerp filter was already enabled");
-// 				ToggleLerpFilterMenu(param1);
-// 				return 0;
-// 			}
-
-// 			if (StartVote(param1))
-// 			{
-// 				LogMessage("Player [%N] start enbale lerp filter vote.", param1);
-// 				//caller is voting for
-// 				FakeClientCommand(param1, "Vote Yes");
-// 			}
-// 			else
-// 			{
-// 				g_voteType = view_as<voteType>(none);
-// 				BuildVoteMenu(param1);
-// 			}
-// 		}
-// 		else if(strcmp(item, "disablefilter") == 0)
-// 		{
-// 			if (!g_bCvarLerpFilter)
-// 			{
-// 				CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Lerp filter was already disabled");
-// 				ToggleLerpFilterMenu(param1);
-// 				return 0;
-// 			}
-
-// 			if (StartVote(param1))
-// 			{
-// 				LogMessage("Player [%N] start disable lerp filter vote.", param1);
-// 				//caller is voting for
-// 				FakeClientCommand(param1, "Vote Yes");
-// 			}
-// 			else
-// 			{
-// 				g_voteType = view_as<voteType>(none);
-// 				BuildVoteMenu(param1);
-// 			}
-// 		}
-// 	}
-// 	return 0;
-// }
-
-/*
-void MatchModeMenu(int iClient)
-{
-    Menu hMenu = new Menu(MatchModeMenuHandler);
-
-    char sBuffer[64];
-    g_hModesKV.Rewind();
-
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Match mode menu", iClient);
-    hMenu.SetTitle(sBuffer);
-
-    if (g_hModesKV.GotoFirstSubKey()) {
-        do {
-            g_hModesKV.GetSectionName(sBuffer, sizeof(sBuffer));
-            hMenu.AddItem(sBuffer, sBuffer);
-        } while (g_hModesKV.GotoNextKey(false));
-    }
-
-    hMenu.ExitBackButton = true;
-    hMenu.ExitButton = true;
-    hMenu.Display(iClient, 20);
-}
-
-public int MatchModeMenuHandler(Menu menu, MenuAction action, int param1, int param2)
-{
-    if (action == MenuAction_End) {
-        delete menu;
-    } else if (action == MenuAction_Select) {
-        char sInfo[64], sBuffer[64];
-        menu.GetItem(param2, sInfo, sizeof(sInfo));
-
-        g_hModesKV.Rewind();
-
-        if (g_hModesKV.JumpToKey(sInfo) && g_hModesKV.GotoFirstSubKey()) {
-            Menu hMenu = new Menu(ConfigsMenuHandler);
-
-            FormatEx(sBuffer, sizeof(sBuffer), "%T", "Match config menu", param1);
-            hMenu.SetTitle(sBuffer);
-
-            do {
-                g_hModesKV.GetSectionName(sInfo, sizeof(sInfo));
-                g_hModesKV.GetString("name", sBuffer, sizeof(sBuffer));
-
-                hMenu.AddItem(sInfo, sBuffer);
-            } while (g_hModesKV.GotoNextKey());
-
-            hMenu.Display(param1, 20);
-        } else {
-            CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}No configs for such mode were found.");
-            MatchModeMenu(param1);
-        }
-    } else if (action == MenuAction_Cancel){
-        BuildVoteMenu(param1);
-    }
-
-    return 0;
-}
-
-public int ConfigsMenuHandler(Menu menu, MenuAction action, int param1, int param2)
-{
-    if (action == MenuAction_End) {
-        delete menu;
-    } else if (action == MenuAction_Cancel) {
-        MatchModeMenu(param1);
-    } else if (action == MenuAction_Select) {
-        char sInfo[64], sBuffer[64];
-        menu.GetItem(param2, sInfo, sizeof(sInfo), _, sBuffer, sizeof(sBuffer));
-
-        if (StartMatchVote(param1, sBuffer)) {
-            strcopy(g_sCfg, sizeof(g_sCfg), sInfo);
-            g_voteType = view_as<voteType>(config);
-            LogMessage("Player [%N] start a config [%s] vote.", param1, g_sCfg);
-            //caller is voting for
-            FakeClientCommand(param1, "Vote Yes");
-        } else {
-            MatchModeMenu(param1);
-        }
-    }
-
-    return 0;
-}
-
-bool StartMatchVote(int iClient, const char[] sCfgName)
-{
-    if (GetClientTeam(iClient) <= L4D2Team_Spectator) {
-        CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}Match voting isn't allowed for spectators.");
-        return false;
-    }
-
-    if (!IsBuiltinVoteInProgress()) {
-        int iNumPlayers = 0;
-        int[] iPlayers = new int[MaxClients];
-
-        //list of non-spectators players
-        for (int i = 1; i <= MaxClients; i++) {
-            if (!IsClientInGame(i) || IsFakeClient(i) || GetClientTeam(i) <= L4D2Team_Spectator) {
-                continue;
-            }
-
-            iPlayers[iNumPlayers++] = i;
-        }
-
-        if (iNumPlayers < sm_match_player_limit.IntValue) {
-            CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}Match vote cannot be started. Not enough players.");
-            return false;
-        }
-
-        char sBuffer[64];
-        FormatEx(sBuffer, sizeof(sBuffer), "Load confogl '%s' config?", sCfgName, iClient);
-
-        g_hVote = CreateBuiltinVote(VoteActionHandler, BuiltinVoteType_Custom_YesNo, BuiltinVoteAction_Cancel | BuiltinVoteAction_VoteEnd | BuiltinVoteAction_End);
-        SetBuiltinVoteArgument(g_hVote, sBuffer);
-        SetBuiltinVoteInitiator(g_hVote, iClient);
-        SetBuiltinVoteResultCallback(g_hVote, VoteResultHandler);
-        DisplayBuiltinVote(g_hVote, iPlayers, iNumPlayers, 15);
-
-        return true;
-    }
-
-    CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}Match vote cannot be started now.");
-    return false;
-}
-*/
 bool StartVote(int iClient)
 {
     if (GetClientTeam(iClient) <= L4D2Team_Spectator)
@@ -1550,17 +1315,6 @@ bool StartVote(int iClient)
                 FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable ready", iClient);
             }
         }
-        // else if (g_voteType == view_as<voteType>(lerp))
-        // {
-        // 	if(g_bCvarLerpFilter)
-        // 	{
-        // 		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable lerp filter", iClient);
-        // 	}
-        // 	else if(!g_bCvarLerpFilter)
-        // 	{
-        // 		FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable lerp filter", iClient);
-        // 	}
-        // }
 
         g_hVote = CreateBuiltinVote(VoteActionHandler, BuiltinVoteType_Custom_YesNo, BuiltinVoteAction_Cancel | BuiltinVoteAction_VoteEnd | BuiltinVoteAction_End);
         SetBuiltinVoteArgument(g_hVote, sBuffer);
@@ -1675,12 +1429,6 @@ public Action ExecVoteRes(Handle timer, any client)
             LogMessage("Vote to toggle ready pass");
         }
 
-            // case (view_as<voteType>(lerp)):
-            // {
-            // 	ToggleLerpFilter();
-            // 	LogMessage("Vote to toggle lerp filter pass");
-            // }
-
             // case (view_as<voteType>(config)):
             // {
             // 	LoadConfig();
@@ -1785,9 +1533,6 @@ void KickPlayer()
 void MutePlayer()
 {
     if (!IsClientInGame(g_selectClient) || IsFakeClient(g_selectClient)) return;
-    // SetClientListeningFlags(target, VOICE_MUTED);
-    // FireOnClientMute(target, true);
-    // BaseComm_SetClientMute(g_selectClient, true);
     ServerCommand("sm_mute %i 30 Vote", g_selectClient);
     CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been muted.", g_selectClient);
     g_selectClient = 0;
@@ -1827,19 +1572,6 @@ void ToggleReady()
     CreateTimer(3.0, RestartMap, _);
 }
 
-// void ToggleLerpFilter()
-// {
-// 	if (g_bCvarLerpFilter)
-// 	{
-// 		SetConVarInt(cvarLerpFilter, 0);
-// 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Lerp Filter {default}has toggle to {blue}disalbe");
-// 	}
-// 	else if (!g_bCvarLerpFilter)
-// 	{
-// 		SetConVarInt(cvarLerpFilter, 1);
-// 		CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Lerp Filter {default}has toggle to {blue}enalbe");
-// 	}
-// }
 public Action RestartMap(Handle timer, any client)
 {
     char currentMap[256];
@@ -1855,22 +1587,6 @@ public Action Timer_ChangeCustomMapDelay(Handle timer, any client)
 
     return Plugin_Continue;
 }
-/*
-void LoadConfig()
-{
-    if (LGO_IsMatchModeLoaded()) {
-        ServerCommand("sm_resetmatch");
-    }
-    ServerCommand("sm_forcematch %s", g_sCfg);
-    // CreateTimer(3.0, Timer_ChangeConfigDelay, _);
-}
-*/
-// public Action Timer_ChangeConfigDelay(Handle timer, any client)
-// {
-// 	ServerCommand("sm_forcematch %s", g_sCfg);
-
-// 	return Plugin_Continue;
-// }
 
 bool HasPills(int iClient)
 {
