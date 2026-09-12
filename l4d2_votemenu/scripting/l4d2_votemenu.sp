@@ -1,31 +1,43 @@
 #pragma semicolon 1
 #pragma newdecls required
 
+// ===================== Includes =====================
+
 #include <sourcemod>
 #include <sdktools>
 #include <builtinvotes>
+#include <colors>
+#include <basecomm>
 #undef REQUIRE_PLUGIN
 #include <confogl>
-#include <colors>
+
 #define L4D2UTIL_STOCKS_ONLY 1
 #include <l4d2util>
 #include <left4dhooks>
-#include <basecomm>
+#include <l4d2_source_keyvalues>
+
+// ===================== Defines =====================
 
 #define MATCHMODES_PATH    "configs/matchmodes.txt"
 #define TRANSLATION_FILE   "l4d2_votemenu.phrases"
 #define MaxHP              100
 #define MAX_CAMPAIGN_LIMIT 64
 
-Handle
-    g_hVote = null;
+// ===================== Handles =====================
 
-KeyValues
-    g_hModesKV = null;
+Handle    g_hVote               = null;
+Handle    g_hSDK_GetAllMissions = null;
+KeyValues g_hModesKV            = null;
+Address   g_pMatchExtL4D        = Address_Null;
+ArrayList g_Features            = null;
+
+// ===================== Convars =====================
 
 ConVar
     sm_votemenu_enable,
     sm_votemenu_timedelay,
+    sm_match_player_limit,
+    l4d_votemenu_debug,
     sm_votemenu_givehp,
     sm_votemenu_pills,
     sm_votemenu_changeslots,
@@ -37,59 +49,53 @@ ConVar
     sm_votemenu_toggleaddons,
     sm_votemenu_toggleready,
     sm_votemenu_changeconfigs,
-    sm_match_player_limit,
     sm_votemenu_nextmap_timer_delay,
-    l4d_votemenu_debug,
     cvarMvMaxPlayers,
     cvarAddons,
     cvarReady;
 
-char
-    g_sSlots[64],
-    g_sCustomMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
-    g_sCustomMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
-    g_nextMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
-    g_nextMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
-    g_sVoteCustomMapIndex[MAX_NAME_LENGTH],
-    g_sVoteCustomMapName[MAX_NAME_LENGTH],
-    g_sVoteNextMapIndex[MAX_NAME_LENGTH],
-    g_sVoteNextMapName[MAX_NAME_LENGTH],
-    g_sVoteNextMapCmdIndex[MAX_NAME_LENGTH];
+// ===================== Cached Convar Values =====================
 
-int
-    g_cvarAddons,
-    g_iSlots,
-    g_customMapCount,
-    g_nextMapCount,
-    g_selectClient;
+int   g_cvarAddons;
+bool  g_cvarReady;
+bool  g_bDebug;
+float g_cvarNextMapTimerDelay;
+bool  g_bMatchModesAvailable;
+bool  g_cvarChangeConfigs;
 
-bool
-    IsConfoglAvailable,
-    g_cvarReady,
-    g_bDebug,
-    g_bVoteEnable[MAXPLAYERS + 1],
-    g_bMatchModesAvailable,
-    g_cvarChangeConfigs;
+// ===================== Vote State =====================
 
-float
-    g_cvarNextMapTimerDelay;
+int   g_iCurrentFeature = -1;
+int   g_iSlots;
+int   g_selectClient;
 
-enum struct VoteFeature
-{
-    char     key[MAX_NAME_LENGTH];
-    char     textKey[MAX_NAME_LENGTH];
-    char     defaultText[MAX_MESSAGE_LENGTH];
-    ConVar   config;
-    bool     includeSpectators;
-    Function onSelect;
-    Function buildTitle;
-    Function execute;
-}
+char  g_sSlots[64];
+char  g_sVoteNextMapIndex[MAX_NAME_LENGTH];
+char  g_sVoteNextMapName[MAX_NAME_LENGTH];
+char  g_sVoteCustomMapIndex[MAX_NAME_LENGTH];
+char  g_sVoteCustomMapName[MAX_NAME_LENGTH];
+char  g_sVoteNextMapCmdIndex[MAX_NAME_LENGTH];
 
-ArrayList g_Features        = null;
-int       g_iCurrentFeature = -1;
+bool  g_bVoteEnable[MAXPLAYERS + 1];
 
-char g_OfficialMapInfo[][32] = {
+// ===================== Maps =====================
+
+int   g_nextMapCount;
+int   g_customMapCount;
+char  g_nextMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH];
+char  g_nextMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH];
+char  g_sCustomMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH];
+char  g_sCustomMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH];
+
+char  g_sCurrentGameMode[32];
+
+// ===================== Environment =====================
+
+bool  IsConfoglAvailable;
+
+// ===================== Official Maps =====================
+
+char  g_OfficialMapInfo[][32] = {
     "c1m1_hotel", "c2m1_highway", "c3m1_plankcountry", "c4m1_milltown_a",
     "c5m1_waterfront", "c6m1_riverbank", "c7m1_docks", "c8m1_apartment",
     "c9m1_alleys", "c10m1_caves", "c11m1_greenhouse", "c12m1_hilltop",
@@ -103,14 +109,32 @@ char g_OfficialMapName[][32] = {
     "Cold Stream", "The Last Stand"
 };
 
+// ===================== Feature Registry =====================
+
+enum struct VoteFeature
+{
+    char     key[MAX_NAME_LENGTH];
+    char     textKey[MAX_NAME_LENGTH];
+    char     defaultText[MAX_MESSAGE_LENGTH];
+    ConVar   config;
+    bool     includeSpectators;
+    Function onSelect;
+    Function buildTitle;
+    Function execute;
+}
+
+// ===================== Plugin Info =====================
+
 public Plugin myinfo =
 {
     name        = "Vote Menu",
     author      = "Kevonlin",
     description = "Vote Menu.",
-    version     = "3.0.1",
+    version     = "3.0.6",
     url         = "https://steamcommunity.com/profiles/76561199044101393/"
 };
+
+// ===================== Plugin Load =====================
 
 public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErrMax)
 {
@@ -133,7 +157,8 @@ public void OnPluginStart()
     HookEvents();
     RegConsoleCmds();
 
-    ScanMapsDirectory();
+    LoadOfficialMaps();
+    InitMissionSDK();
 
     g_Features = new ArrayList(sizeof(VoteFeature));
     RegisterAllFeatures();
@@ -141,7 +166,65 @@ public void OnPluginStart()
     AutoExecConfig(true, "l4d2_votemenu");
 }
 
-// ===================== Registration =====================
+public void OnMapStart()
+{
+    UpdateCurrentGameMode();
+    CreateTimer(1.0, Timer_ScanCustomMaps, _, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Timer_ScanCustomMaps(Handle timer)
+{
+    ScanCustomMapsFromGame();
+    SyncPhrasesFile();
+    LogMessage("[Vote] Loaded: %d official, %d custom.", g_nextMapCount, g_customMapCount);
+    return Plugin_Stop;
+}
+
+// ===================== Mission SDK =====================
+
+void InitMissionSDK()
+{
+    if (g_hSDK_GetAllMissions != null) return;
+
+    GameData gd = new GameData("l4d2_map_vote");
+    if (gd == null)
+    {
+        LogError("[Vote] Could not load gamedata 'l4d2_map_vote.txt'.");
+        return;
+    }
+
+    g_pMatchExtL4D = gd.GetAddress("g_pMatchExtL4D");
+    if (g_pMatchExtL4D == Address_Null)
+    {
+        LogError("[Vote] Failed to get 'g_pMatchExtL4D' from gamedata.");
+        delete gd;
+        return;
+    }
+
+    StartPrepSDKCall(SDKCall_Raw);
+    PrepSDKCall_SetVirtual(0);
+    PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
+    g_hSDK_GetAllMissions = EndPrepSDKCall();
+
+    delete gd;
+
+    if (g_hSDK_GetAllMissions == null)
+    {
+        LogError("[Vote] Failed to prepare SDKCall for GetAllMissions.");
+        return;
+    }
+
+    LogMessage("[Vote] Mission SDK ready.");
+}
+
+void UpdateCurrentGameMode()
+{
+    ConVar cv = FindConVar("mp_gamemode");
+    if (cv != null)
+        cv.GetString(g_sCurrentGameMode, sizeof(g_sCurrentGameMode));
+}
+
+// ===================== Feature Registration =====================
 
 void RegisterAllFeatures()
 {
@@ -159,192 +242,120 @@ void RegisterAllFeatures()
         RegisterChangeConfigFeature();
 }
 
-void RegisterHpFeature()
+void PushFeature(const char[] key, const char[] textKey, const char[] defaultText,
+                 ConVar config, bool includeSpec,
+                 Function onSel, Function title, Function exec)
 {
     VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "givehp");
-    strcopy(f.textKey, sizeof(f.textKey), "Give hp");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Recovery Health");
-    f.config            = sm_votemenu_givehp;
-    f.includeSpectators = false;
-    f.onSelect          = Hp_OnSelect;
-    f.buildTitle        = Hp_BuildTitle;
-    f.execute           = Hp_Execute;
+    strcopy(f.key, sizeof(f.key), key);
+    strcopy(f.textKey, sizeof(f.textKey), textKey);
+    strcopy(f.defaultText, sizeof(f.defaultText), defaultText);
+    f.config            = config;
+    f.includeSpectators = includeSpec;
+    f.onSelect          = onSel;
+    f.buildTitle        = title;
+    f.execute           = exec;
     g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterHpFeature()
+{
+    PushFeature("givehp", "Give hp", "Recovery Health",
+                sm_votemenu_givehp, false,
+                DirectVote_OnSelect, Hp_BuildTitle, Hp_Execute);
 }
 
 void RegisterPillsFeature()
 {
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "givepills");
-    strcopy(f.textKey, sizeof(f.textKey), "Give pills");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Give Pills");
-    f.config            = sm_votemenu_pills;
-    f.includeSpectators = false;
-    f.onSelect          = Pills_OnSelect;
-    f.buildTitle        = Pills_BuildTitle;
-    f.execute           = Pills_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("givepills", "Give pills", "Give Pills",
+                sm_votemenu_pills, false,
+                DirectVote_OnSelect, Pills_BuildTitle, Pills_Execute);
 }
 
 void RegisterSlotsFeature()
 {
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "changeslots");
-    strcopy(f.textKey, sizeof(f.textKey), "Change slots");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Change Slots");
-    f.config            = sm_votemenu_changeslots;
-    f.includeSpectators = false;
-    f.onSelect          = Slots_OnSelect;
-    f.buildTitle        = Slots_BuildTitle;
-    f.execute           = Slots_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("changeslots", "Change slots", "Change Slots",
+                sm_votemenu_changeslots, false,
+                Slots_OnSelect, Slots_BuildTitle, Slots_Execute);
 }
 
 void RegisterNextMapFeature()
 {
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "nextmap");
-    strcopy(f.textKey, sizeof(f.textKey), "Next map");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Next Map");
-    f.config            = sm_votemenu_nextmap;
-    f.includeSpectators = false;
-    f.onSelect          = NextMap_OnSelect;
-    f.buildTitle        = NextMap_BuildTitle;
-    f.execute           = NextMap_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("nextmap", "Next map", "Next Map",
+                sm_votemenu_nextmap, false,
+                NextMap_OnSelect, NextMap_BuildTitle, NextMap_Execute);
 }
 
 void RegisterCustomMapFeature()
 {
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "changecustommaps");
-    strcopy(f.textKey, sizeof(f.textKey), "Change custom maps");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Change Custom Maps");
-    f.config            = sm_votemenu_changecustommaps;
-    f.includeSpectators = false;
-    f.onSelect          = CustomMap_OnSelect;
-    f.buildTitle        = CustomMap_BuildTitle;
-    f.execute           = CustomMap_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("changecustommaps", "Change custom maps", "Change Custom Maps",
+                sm_votemenu_changecustommaps, false,
+                CustomMap_OnSelect, CustomMap_BuildTitle, CustomMap_Execute);
 }
 
 void RegisterBanFeature()
 {
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "banplayers");
-    strcopy(f.textKey, sizeof(f.textKey), "Ban players");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Ban Players");
-    f.config            = sm_votemenu_ban;
-    f.includeSpectators = true;
-    f.onSelect          = Ban_OnSelect;
-    f.buildTitle        = Ban_BuildTitle;
-    f.execute           = Ban_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("banplayers", "Ban players", "Ban Players",
+                sm_votemenu_ban, true,
+                SelectPlayer_OnSelect, Ban_BuildTitle, Ban_Execute);
 }
 
 void RegisterKickFeature()
 {
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "kickplayers");
-    strcopy(f.textKey, sizeof(f.textKey), "Kick players");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Kick Players");
-    f.config            = sm_votemenu_kick;
-    f.includeSpectators = true;
-    f.onSelect          = Kick_OnSelect;
-    f.buildTitle        = Kick_BuildTitle;
-    f.execute           = Kick_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("kickplayers", "Kick players", "Kick Players",
+                sm_votemenu_kick, true,
+                SelectPlayer_OnSelect, Kick_BuildTitle, Kick_Execute);
 }
 
 void RegisterMuteFeature()
 {
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "muteplayers");
-    strcopy(f.textKey, sizeof(f.textKey), "Mute players");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Mute Players");
-    f.config            = sm_votemenu_mute;
-    f.includeSpectators = true;
-    f.onSelect          = Mute_OnSelect;
-    f.buildTitle        = Mute_BuildTitle;
-    f.execute           = Mute_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("muteplayers", "Mute players", "Mute Players",
+                sm_votemenu_mute, true,
+                SelectPlayer_OnSelect, Mute_BuildTitle, Mute_Execute);
 }
 
 void RegisterAddonsFeature()
 {
     if (cvarAddons == null) return;
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "toggleaddons");
-    strcopy(f.textKey, sizeof(f.textKey), "Toggle addons");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Toggle Addons");
-    f.config            = sm_votemenu_toggleaddons;
-    f.includeSpectators = false;
-    f.onSelect          = Addons_OnSelect;
-    f.buildTitle        = Addons_BuildTitle;
-    f.execute           = Addons_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("toggleaddons", "Toggle addons", "Toggle Addons",
+                sm_votemenu_toggleaddons, false,
+                Addons_OnSelect, Addons_BuildTitle, Addons_Execute);
 }
 
 void RegisterReadyFeature()
 {
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "toggleready");
-    strcopy(f.textKey, sizeof(f.textKey), "Toggle ready");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Toggle Ready");
-    f.config            = sm_votemenu_toggleready;
-    f.includeSpectators = false;
-    f.onSelect          = Ready_OnSelect;
-    f.buildTitle        = Ready_BuildTitle;
-    f.execute           = Ready_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("toggleready", "Toggle ready", "Toggle Ready",
+                sm_votemenu_toggleready, false,
+                Ready_OnSelect, Ready_BuildTitle, Ready_Execute);
 }
 
 void RegisterChangeConfigFeature()
 {
-    VoteFeature f;
-    strcopy(f.key, sizeof(f.key), "changeconfig");
-    strcopy(f.textKey, sizeof(f.textKey), "Change config");
-    strcopy(f.defaultText, sizeof(f.defaultText), "Change Config");
-    f.config            = null;
-    f.includeSpectators = false;
-    f.onSelect          = ChangeConfig_OnSelect;
-    f.buildTitle        = ChangeConfig_BuildTitle;
-    f.execute           = ChangeConfig_Execute;
-    g_Features.PushArray(f, sizeof(f));
+    PushFeature("changeconfig", "Change config", "Change Config",
+                null, false,
+                ChangeConfig_OnSelect, ChangeConfig_BuildTitle, ChangeConfig_Execute);
 }
 
-// ===================== Feature Behaviors =====================
+// ===================== Shared OnSelect =====================
 
-public void Hp_OnSelect(int client)
+public void DirectVote_OnSelect(int client)
 {
     if (StartVote(client))
-    {
-        LogMessage("Player [%N] start a give hp vote.", client);
         FakeClientCommand(client, "Vote Yes");
-    }
-    else BuildVoteMenu(client);
+    else
+        BuildVoteMenu(client);
 }
+
+public void SelectPlayer_OnSelect(int client)
+{
+    SelectPlayerMenu(client);
+}
+
+// ===================== Feature BuildTitle =====================
 
 public void Hp_BuildTitle(int client, char[] buf, int maxlen)
 {
     VoteGetText(client, "Give hp context", "Recovery Health?", buf, maxlen);
-}
-
-public void Hp_Execute()
-{
-    RecoveryHealth();
-    LogMessage("Vote to give hp pass");
-}
-
-public void Pills_OnSelect(int client)
-{
-    if (StartVote(client))
-    {
-        LogMessage("Player [%N] start a give pills vote.", client);
-        FakeClientCommand(client, "Vote Yes");
-    }
-    else BuildVoteMenu(client);
 }
 
 public void Pills_BuildTitle(int client, char[] buf, int maxlen)
@@ -352,35 +363,13 @@ public void Pills_BuildTitle(int client, char[] buf, int maxlen)
     VoteGetText(client, "Give pills context", "Give Pills?", buf, maxlen);
 }
 
-public void Pills_Execute()
-{
-    GivePills();
-    LogMessage("Vote to give pills pass");
-}
-
-public void Slots_OnSelect(int client)
-{
-    SlotsMenu(client);
-}
-
 public void Slots_BuildTitle(int client, char[] buf, int maxlen)
 {
-    if (g_iSlots == 8) VoteGetText(client, "Slots 8", "Limit slots to 8", buf, maxlen);
+    if (g_iSlots == 8)       VoteGetText(client, "Slots 8",  "Limit slots to 8",  buf, maxlen);
     else if (g_iSlots == 10) VoteGetText(client, "Slots 10", "Limit slots to 10", buf, maxlen);
     else if (g_iSlots == 12) VoteGetText(client, "Slots 12", "Limit slots to 12", buf, maxlen);
     else if (g_iSlots == 14) VoteGetText(client, "Slots 14", "Limit slots to 14", buf, maxlen);
     else if (g_iSlots == 16) VoteGetText(client, "Slots 16", "Limit slots to 16", buf, maxlen);
-}
-
-public void Slots_Execute()
-{
-    ChangeSlots(g_iSlots);
-    LogMessage("Vote to change slots pass");
-}
-
-public void NextMap_OnSelect(int client)
-{
-    NextMapMenu(client);
 }
 
 public void NextMap_BuildTitle(int client, char[] buf, int maxlen)
@@ -390,33 +379,11 @@ public void NextMap_BuildTitle(int client, char[] buf, int maxlen)
     FormatEx(buf, maxlen, "%s [%s]", tmp, g_sVoteNextMapName);
 }
 
-public void NextMap_Execute()
-{
-    ChangeNextMap(g_sVoteNextMapIndex, g_sVoteNextMapName);
-    LogMessage("Vote next map pass");
-}
-
-public void CustomMap_OnSelect(int client)
-{
-    CustomMapMenu(client);
-}
-
 public void CustomMap_BuildTitle(int client, char[] buf, int maxlen)
 {
     char tmp[64];
     VoteGetText(client, "Change custom map", "Change Custom Map", tmp, sizeof(tmp));
     FormatEx(buf, maxlen, "%s [%s]", tmp, g_sVoteCustomMapName);
-}
-
-public void CustomMap_Execute()
-{
-    ChangeCustomMap(g_sVoteCustomMapIndex, g_sVoteCustomMapName);
-    LogMessage("Vote to change custom map [%s] pass", g_sVoteCustomMapName);
-}
-
-public void Ban_OnSelect(int client)
-{
-    SelectPlayerMenu(client);
 }
 
 public void Ban_BuildTitle(int client, char[] buf, int maxlen)
@@ -426,17 +393,6 @@ public void Ban_BuildTitle(int client, char[] buf, int maxlen)
     FormatEx(buf, maxlen, "%s [%N] 30min", tmp, g_selectClient);
 }
 
-public void Ban_Execute()
-{
-    BanPlayer(g_selectClient);
-    LogMessage("Vote to ban player [%N] pass", g_selectClient);
-}
-
-public void Kick_OnSelect(int client)
-{
-    SelectPlayerMenu(client);
-}
-
 public void Kick_BuildTitle(int client, char[] buf, int maxlen)
 {
     char tmp[64];
@@ -444,33 +400,11 @@ public void Kick_BuildTitle(int client, char[] buf, int maxlen)
     FormatEx(buf, maxlen, "%s [%N]", tmp, g_selectClient);
 }
 
-public void Kick_Execute()
-{
-    KickPlayer(g_selectClient);
-    LogMessage("Vote to kick player [%N] pass", g_selectClient);
-}
-
-public void Mute_OnSelect(int client)
-{
-    SelectPlayerMenu(client);
-}
-
 public void Mute_BuildTitle(int client, char[] buf, int maxlen)
 {
     char tmp[64];
     VoteGetText(client, "Mute players", "Mute Player", tmp, sizeof(tmp));
     FormatEx(buf, maxlen, "%s [%N] 30min", tmp, g_selectClient);
-}
-
-public void Mute_Execute()
-{
-    MutePlayer(g_selectClient);
-    LogMessage("Vote to mute player [%N] pass", g_selectClient);
-}
-
-public void Addons_OnSelect(int client)
-{
-    AddonsMenu(client);
 }
 
 public void Addons_BuildTitle(int client, char[] buf, int maxlen)
@@ -481,23 +415,88 @@ public void Addons_BuildTitle(int client, char[] buf, int maxlen)
         VoteGetText(client, "Enable addons", "Enable Addons", buf, maxlen);
 }
 
-public void Addons_Execute()
-{
-    ToggleAddons();
-    LogMessage("Vote to toggle addons pass");
-}
-
-public void Ready_OnSelect(int client)
-{
-    ReadyMenu(client);
-}
-
 public void Ready_BuildTitle(int client, char[] buf, int maxlen)
 {
     if (g_cvarReady)
         VoteGetText(client, "Disable ready", "Disable Ready", buf, maxlen);
     else
         VoteGetText(client, "Enable ready", "Enable Ready", buf, maxlen);
+}
+
+public void ChangeConfig_BuildTitle(int client, char[] buf, int maxlen) {}
+
+// ===================== Feature OnSelect =====================
+
+public void Slots_OnSelect(int client)     { SlotsMenu(client); }
+public void NextMap_OnSelect(int client)   { NextMapMenu(client); }
+public void CustomMap_OnSelect(int client) { CustomMapMenu(client); }
+public void Addons_OnSelect(int client)    { AddonsMenu(client); }
+public void Ready_OnSelect(int client)     { ReadyMenu(client); }
+
+public void ChangeConfig_OnSelect(int client)
+{
+    if (!g_cvarChangeConfigs)
+    {
+        CPrintToChat(client, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
+        return;
+    }
+    FakeClientCommand(client, "sm_chmatch");
+}
+
+// ===================== Feature Execute =====================
+
+public void Hp_Execute()
+{
+    RecoveryHealth();
+    LogMessage("Vote to give hp pass");
+}
+
+public void Pills_Execute()
+{
+    GivePills();
+    LogMessage("Vote to give pills pass");
+}
+
+public void Slots_Execute()
+{
+    ChangeSlots(g_iSlots);
+    LogMessage("Vote to change slots pass");
+}
+
+public void NextMap_Execute()
+{
+    ChangeNextMap(g_sVoteNextMapIndex, g_sVoteNextMapName);
+    LogMessage("Vote next map pass");
+}
+
+public void CustomMap_Execute()
+{
+    ChangeCustomMap(g_sVoteCustomMapIndex, g_sVoteCustomMapName);
+    LogMessage("Vote to change custom map [%s] pass", g_sVoteCustomMapName);
+}
+
+public void Ban_Execute()
+{
+    BanPlayer(g_selectClient);
+    LogMessage("Vote to ban player [%N] pass", g_selectClient);
+}
+
+public void Kick_Execute()
+{
+    KickPlayer(g_selectClient);
+    LogMessage("Vote to kick player [%N] pass", g_selectClient);
+}
+
+public void Mute_Execute()
+{
+    MutePlayer(g_selectClient);
+    LogMessage("Vote to mute player [%N] pass", g_selectClient);
+}
+
+public void Addons_Execute()
+{
+    ToggleAddons();
+    LogMessage("Vote to toggle addons pass");
 }
 
 public void Ready_Execute()
@@ -511,18 +510,6 @@ public void Ready_Execute()
     LogMessage("Vote to toggle ready pass");
 }
 
-public void ChangeConfig_OnSelect(int client)
-{
-    if (!g_cvarChangeConfigs)
-    {
-        CPrintToChat(client, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-        return;
-    }
-    FakeClientCommand(client, "sm_chmatch");
-}
-
-public void ChangeConfig_BuildTitle(int client, char[] buf, int maxlen) {}
-
 public void ChangeConfig_Execute() {}
 
 // ===================== Base Setup =====================
@@ -531,6 +518,18 @@ void RegConsoleCmds()
 {
     RegConsoleCmd("sm_votemenu", Command_Votes, "Open vote menu.");
     RegConsoleCmd("sm_votes", Command_Votes, "Open vote menu.");
+}
+
+void LoadOfficialMaps()
+{
+    g_nextMapCount    = 0;
+    int officialCount = sizeof(g_OfficialMapInfo);
+    for (int i = 0; i < officialCount && i < MAX_CAMPAIGN_LIMIT; i++)
+    {
+        strcopy(g_nextMapIndex[i], MAX_NAME_LENGTH, g_OfficialMapInfo[i]);
+        strcopy(g_nextMapName[i], MAX_NAME_LENGTH, g_OfficialMapName[i]);
+        g_nextMapCount++;
+    }
 }
 
 void HookEvents()
@@ -553,11 +552,8 @@ void HookConVarChanges()
     HookConVarChange(sm_votemenu_toggleready, CVarChanged);
     HookConVarChange(sm_votemenu_nextmap_timer_delay, CVarChanged);
 
-    if (cvarAddons != null)
-        HookConVarChange(cvarAddons, CVarChanged);
-
-    if (cvarReady != null)
-        HookConVarChange(cvarReady, CVarChanged);
+    if (cvarAddons != null) HookConVarChange(cvarAddons, CVarChanged);
+    if (cvarReady != null)  HookConVarChange(cvarReady, CVarChanged);
 }
 
 void CreateConVars()
@@ -584,24 +580,19 @@ void GetConVars()
 {
     IsConfoglAvailable = LibraryExists("confogl");
 
-    cvarMvMaxPlayers   = FindConVar("sv_maxplayers");
-    cvarAddons         = FindConVar("l4d2_addons_eclipse");
+    cvarMvMaxPlayers = FindConVar("sv_maxplayers");
+    cvarAddons       = FindConVar("l4d2_addons_eclipse");
 
     if (IsConfoglAvailable)
-    {
         cvarReady = FindConVar("l4d_ready_enabled");
-    }
 
     g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
     g_cvarChangeConfigs     = GetConVarBool(sm_votemenu_changeconfigs) && g_bMatchModesAvailable;
     g_bDebug                = GetConVarBool(l4d_votemenu_debug);
-
     g_cvarAddons            = (cvarAddons != null) ? GetConVarInt(cvarAddons) : 1;
 
     if (IsConfoglAvailable && cvarReady != null)
-    {
         g_cvarReady = GetConVarBool(cvarReady);
-    }
 }
 
 void CheckMatchModeConfigs()
@@ -648,96 +639,73 @@ void LoadingTranslations()
 void VoteGetText(int client, const char[] textKey, const char[] defaultText, char[] buffer, int maxlen)
 {
     if (TranslationPhraseExists(textKey))
-    {
         FormatEx(buffer, maxlen, "%T", textKey, client);
-    }
     else
-    {
         strcopy(buffer, maxlen, defaultText);
-    }
 }
 
 // ===================== Map Scanning =====================
 
-void ScanMapsDirectory()
-{
-    g_nextMapCount    = 0;
-    int officialCount = sizeof(g_OfficialMapInfo);
-    for (int i = 0; i < officialCount && i < MAX_CAMPAIGN_LIMIT; i++)
-    {
-        strcopy(g_nextMapIndex[i], MAX_NAME_LENGTH, g_OfficialMapInfo[i]);
-        strcopy(g_nextMapName[i], MAX_NAME_LENGTH, g_OfficialMapName[i]);
-        g_nextMapCount++;
-    }
-
-    ScanCustomMapsFromVpks();
-
-    LogMessage("[Vote] Loaded: %d official, %d custom.", g_nextMapCount, g_customMapCount);
-}
-
-void ScanCustomMapsFromVpks()
+void ScanCustomMapsFromGame()
 {
     g_customMapCount = 0;
 
-    DirectoryListing addonsDir = OpenDirectory("addons");
-    if (addonsDir == null)
+    if (g_hSDK_GetAllMissions == null || g_pMatchExtL4D == Address_Null)
     {
-        LogError("[Vote] Cannot open addons directory.");
+        LogError("[Vote] Mission SDK not initialized, custom maps unavailable.");
         return;
     }
 
-    char     fileName[PLATFORM_MAX_PATH];
-    FileType type;
-    while (addonsDir.GetNext(fileName, sizeof(fileName), type))
+    SourceKeyValues kvMissions = SDKCall(g_hSDK_GetAllMissions, g_pMatchExtL4D);
+    if (kvMissions.IsNull())
     {
-        if (type != FileType_File) continue;
-        if (!StrEndsWith(fileName, ".vpk")) continue;
-        if (StrEndsWith(fileName, "_dir.vpk")) continue;
+        LogError("[Vote] GetAllMissions returned null.");
+        return;
+    }
 
-        int len = strlen(fileName);
-        if (len >= 8 && fileName[len - 8] == '_')
+    char missionName[64];
+    char missionTitle[128];
+
+    SourceKeyValues kvSub = kvMissions.GetFirstTrueSubKey();
+    while (!kvSub.IsNull())
+    {
+        kvSub.GetName(missionName, sizeof(missionName));
+
+        bool bSkip = StrEqual(missionName, "credits")
+                  || StrEqual(missionName, "holdoutchallenge")
+                  || StrEqual(missionName, "holdouttraining")
+                  || StrEqual(missionName, "parishdash")
+                  || StrEqual(missionName, "shootzones")
+                  || kvSub.GetInt("builtin") == 1;
+
+        if (!bSkip && g_customMapCount < MAX_CAMPAIGN_LIMIT)
         {
-            bool isChunk = true;
-            for (int k = len - 7; k < len - 4; k++)
+            char modePath[128];
+            Format(modePath, sizeof(modePath), "modes/%s", g_sCurrentGameMode);
+            SourceKeyValues kvMode = kvSub.FindKey(modePath);
+
+            if (!kvMode.IsNull())
             {
-                if (fileName[k] < '0' || fileName[k] > '9')
+                SourceKeyValues kvFirstChapter = kvMode.GetFirstTrueSubKey();
+                if (!kvFirstChapter.IsNull())
                 {
-                    isChunk = false;
-                    break;
+                    char firstMap[64];
+                    kvFirstChapter.GetString("Map", firstMap, sizeof(firstMap));
+
+                    if (!StrEqual(firstMap, "") && !IsCustomMapAlreadyAdded(firstMap))
+                    {
+                        kvSub.GetString("DisplayTitle", missionTitle, sizeof(missionTitle), missionName);
+
+                        strcopy(g_sCustomMapIndex[g_customMapCount], MAX_NAME_LENGTH, firstMap);
+                        strcopy(g_sCustomMapName[g_customMapCount], MAX_NAME_LENGTH, missionTitle);
+                        g_customMapCount++;
+                    }
                 }
             }
-            if (isChunk) continue;
         }
 
-        char vpkMapsPath[PLATFORM_MAX_PATH];
-        FormatEx(vpkMapsPath, sizeof(vpkMapsPath), "addons/%s/maps", fileName);
-
-        DirectoryListing mapsDir = OpenDirectory(vpkMapsPath, true);
-        if (mapsDir == null) continue;
-
-        char     mapFile[PLATFORM_MAX_PATH];
-        FileType mt;
-        while (mapsDir.GetNext(mapFile, sizeof(mapFile), mt))
-        {
-            if (mt != FileType_File) continue;
-            if (!StrEndsWith(mapFile, ".bsp")) continue;
-
-            int mlen      = strlen(mapFile) - 4;
-            mapFile[mlen] = '\0';
-
-            if (StrEndsWith(mapFile, "_sndscape")) continue;
-            if (StrEndsWith(mapFile, "_commentary")) continue;
-
-            if (g_customMapCount >= MAX_CAMPAIGN_LIMIT) break;
-            if (IsCustomMapAlreadyAdded(mapFile)) continue;
-
-            strcopy(g_sCustomMapIndex[g_customMapCount], MAX_NAME_LENGTH, mapFile);
-            strcopy(g_sCustomMapName[g_customMapCount], MAX_NAME_LENGTH, mapFile);
-            g_customMapCount++;
-        }
-        delete mapsDir;
+        kvSub = kvSub.GetNextTrueSubKey();
     }
-    delete addonsDir;
 }
 
 bool IsCustomMapAlreadyAdded(const char[] mapName)
@@ -749,17 +717,85 @@ bool IsCustomMapAlreadyAdded(const char[] mapName)
     return false;
 }
 
-bool StrEndsWith(const char[] str, const char[] suffix)
+// ===================== Phrases =====================
+
+void AddPhraseIfMissing(KeyValues kv, const char[] key, const char[] text)
 {
-    int lenStr    = strlen(str);
-    int lenSuffix = strlen(suffix);
-    if (lenSuffix > lenStr) return false;
-    int offset = lenStr - lenSuffix;
-    for (int i = 0; i < lenSuffix; i++)
+    if (kv.JumpToKey(key))
     {
-        if (str[offset + i] != suffix[i]) return false;
+        kv.GoBack();
+        return;
     }
-    return true;
+
+    kv.JumpToKey(key, true);
+    kv.SetString("en", text);
+    kv.SetString("chi", text);
+    kv.GoBack();
+}
+
+void EnsureDefaultPhrases(KeyValues kv)
+{
+    AddPhraseIfMissing(kv, "Menu name",             "Vote Menu");
+
+    AddPhraseIfMissing(kv, "Give hp",               "Recovery Health");
+    AddPhraseIfMissing(kv, "Give pills",            "Give Pills");
+    AddPhraseIfMissing(kv, "Change slots",          "Change Slots");
+    AddPhraseIfMissing(kv, "Next map",              "Next Map");
+    AddPhraseIfMissing(kv, "Change custom maps",    "Change Custom Maps");
+    AddPhraseIfMissing(kv, "Ban players",           "Ban Player");
+    AddPhraseIfMissing(kv, "Kick players",          "Kick Player");
+    AddPhraseIfMissing(kv, "Mute players",          "Mute Player");
+    AddPhraseIfMissing(kv, "Toggle addons",         "Toggle Addons");
+    AddPhraseIfMissing(kv, "Toggle ready",          "Toggle Ready");
+    AddPhraseIfMissing(kv, "Change config",         "Change Config");
+
+    AddPhraseIfMissing(kv, "Slots Menu",            "Change Slots Menu");
+    AddPhraseIfMissing(kv, "Slots 8",               "Limit slots to 8");
+    AddPhraseIfMissing(kv, "Slots 10",              "Limit slots to 10");
+    AddPhraseIfMissing(kv, "Slots 12",              "Limit slots to 12");
+    AddPhraseIfMissing(kv, "Slots 14",              "Limit slots to 14");
+    AddPhraseIfMissing(kv, "Slots 16",              "Limit slots to 16");
+
+    AddPhraseIfMissing(kv, "Select map menu",       "Select a Map");
+    AddPhraseIfMissing(kv, "Select pleyer menu",    "Select a Player");
+    AddPhraseIfMissing(kv, "Kick all spectators",   "Kick All Spectators");
+    AddPhraseIfMissing(kv, "No maps available",     "No Maps Available");
+    AddPhraseIfMissing(kv, "No players available",  "No Players Available");
+
+    AddPhraseIfMissing(kv, "Enable addons",         "Enable Addons");
+    AddPhraseIfMissing(kv, "Disable addons",        "Disable Addons");
+    AddPhraseIfMissing(kv, "Enable ready",          "Enable Ready");
+    AddPhraseIfMissing(kv, "Disable ready",         "Disable Ready");
+
+    AddPhraseIfMissing(kv, "Give hp context",       "Recovery Health?");
+    AddPhraseIfMissing(kv, "Give pills context",    "Give Pills?");
+    AddPhraseIfMissing(kv, "Vote next map",         "Vote Next Map");
+    AddPhraseIfMissing(kv, "Change custom map",     "Change Custom Map");
+}
+
+void SyncPhrasesFile()
+{
+    char sPath[PLATFORM_MAX_PATH];
+    BuildPath(Path_SM, sPath, sizeof(sPath), "translations/" ... TRANSLATION_FILE... ".txt");
+
+    KeyValues kv = new KeyValues("Phrases");
+
+    if (FileExists(sPath))
+        kv.ImportFromFile(sPath);
+
+    EnsureDefaultPhrases(kv);
+
+    for (int i = 0; i < g_customMapCount; i++)
+    {
+        AddPhraseIfMissing(kv, g_sCustomMapIndex[i], g_sCustomMapName[i]);
+    }
+
+    kv.ExportToFile(sPath);
+    delete kv;
+
+    LoadTranslations(TRANSLATION_FILE);
+
+    LogMessage("[Vote] Phrases file synced (%d custom maps).", g_customMapCount);
 }
 
 // ===================== Events & Hooks =====================
@@ -777,14 +813,10 @@ public void OnClientPostAdminCheck(int client)
     g_bVoteEnable[client] = true;
 
     if (!g_bDebug || IsFakeClient(client) || CheckCommandAccess(client, "", ADMFLAG_ROOT) == true)
-    {
         return;
-    }
 
     if (!(GetUserFlagBits(client) & ADMFLAG_GENERIC))
-    {
         KickClient(client, "Server is in debug mode.");
-    }
 }
 
 public void OnClientDisconnect(int client)
@@ -822,10 +854,7 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
 
 public Action Command_Votes(int iClient, int iArgs)
 {
-    if (iClient == 0 || !sm_votemenu_enable.BoolValue)
-    {
-        return Plugin_Handled;
-    }
+    if (iClient == 0 || !sm_votemenu_enable.BoolValue) return Plugin_Handled;
 
     if (GetClientTeam(iClient) <= L4D2Team_Spectator)
     {
@@ -899,16 +928,11 @@ void SlotsMenu(int iClient)
     VoteGetText(iClient, "Slots Menu", "Change Slots Menu", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    VoteGetText(iClient, "Slots 8", "Limit slots to 8", sBuffer, sizeof(sBuffer));
-    vMenu.AddItem("slots8", sBuffer);
-    VoteGetText(iClient, "Slots 10", "Limit slots to 10", sBuffer, sizeof(sBuffer));
-    vMenu.AddItem("slots10", sBuffer);
-    VoteGetText(iClient, "Slots 12", "Limit slots to 12", sBuffer, sizeof(sBuffer));
-    vMenu.AddItem("slots12", sBuffer);
-    VoteGetText(iClient, "Slots 14", "Limit slots to 14", sBuffer, sizeof(sBuffer));
-    vMenu.AddItem("slots14", sBuffer);
-    VoteGetText(iClient, "Slots 16", "Limit slots to 16", sBuffer, sizeof(sBuffer));
-    vMenu.AddItem("slots16", sBuffer);
+    VoteGetText(iClient, "Slots 8",  "Limit slots to 8",  sBuffer, sizeof(sBuffer)); vMenu.AddItem("slots8",  sBuffer);
+    VoteGetText(iClient, "Slots 10", "Limit slots to 10", sBuffer, sizeof(sBuffer)); vMenu.AddItem("slots10", sBuffer);
+    VoteGetText(iClient, "Slots 12", "Limit slots to 12", sBuffer, sizeof(sBuffer)); vMenu.AddItem("slots12", sBuffer);
+    VoteGetText(iClient, "Slots 14", "Limit slots to 14", sBuffer, sizeof(sBuffer)); vMenu.AddItem("slots14", sBuffer);
+    VoteGetText(iClient, "Slots 16", "Limit slots to 16", sBuffer, sizeof(sBuffer)); vMenu.AddItem("slots16", sBuffer);
 
     vMenu.ExitBackButton = true;
     vMenu.ExitButton     = true;
@@ -930,7 +954,7 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
         char item[64];
         menu.GetItem(param2, item, sizeof(item));
 
-        if (strcmp(item, "slots8") == 0) g_sSlots = "8";
+        if (strcmp(item, "slots8") == 0)       g_sSlots = "8";
         else if (strcmp(item, "slots10") == 0) g_sSlots = "10";
         else if (strcmp(item, "slots12") == 0) g_sSlots = "12";
         else if (strcmp(item, "slots14") == 0) g_sSlots = "14";
@@ -1118,7 +1142,6 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
         }
 
         int target = GetClientOfUserId(StringToInt(item));
-
         if (!(IsValidPlayerIndex(param1) && IsValidPlayerIndex(target))) return 0;
 
         AdminId clientAdmin = GetUserAdmin(param1);
@@ -1516,13 +1539,9 @@ void ToggleAddons()
 void ToggleReady()
 {
     if (g_cvarReady)
-    {
         SetConVarInt(cvarReady, 1);
-    }
     else
-    {
         SetConVarInt(cvarReady, 2);
-    }
 
     CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has been toggled.");
     CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Map will restart after {blue}3s");
@@ -1556,9 +1575,7 @@ bool IsDefaultEnableMod()
     static ConVar mp_gamemode;
 
     if (mp_gamemode == null)
-    {
         mp_gamemode = FindConVar("mp_gamemode");
-    }
 
     char sGamemode[16];
     mp_gamemode.GetString(sGamemode, sizeof(sGamemode));
