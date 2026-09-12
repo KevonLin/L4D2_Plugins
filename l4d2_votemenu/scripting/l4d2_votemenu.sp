@@ -14,9 +14,6 @@
 
 #define MATCHMODES_PATH    "configs/matchmodes.txt"
 #define TRANSLATION_FILE   "l4d2_votemenu.phrases"
-#define CUSTOMMAP_PATH     "data/l4d2_votemenu_custommap.txt"
-#define NEXTMAP_PATH       "data/l4d2_votemenu_nextmap.txt"
-
 #define MaxHP              100
 #define MAX_CAMPAIGN_LIMIT 64
 
@@ -49,8 +46,8 @@ ConVar
 
 char
     g_sSlots[64],
-    g_customMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
-    g_customMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
+    g_sCustomMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
+    g_sCustomMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
     g_nextMapIndex[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
     g_nextMapName[MAX_CAMPAIGN_LIMIT][MAX_NAME_LENGTH],
     g_sVoteCustomMapIndex[MAX_NAME_LENGTH],
@@ -72,45 +69,43 @@ bool
     g_bDebug,
     g_bVoteEnable[MAXPLAYERS + 1],
     g_bMatchModesAvailable,
-    g_cvarGiveHP,
-    g_cvarGivePills,
-    g_cvarChangeSlots,
-    g_cvarNextMap,
-    g_cvarCustomMap,
-    g_cvarBan,
-    g_cvarKick,
-    g_cvarMute,
-    g_cvarToggleAddons,
-    g_cvarToggleReady,
     g_cvarChangeConfigs;
 
 float
     g_cvarNextMapTimerDelay;
 
-enum voteType
+enum struct VoteFeature
 {
-    none,
-    hp,
-    pills,
-    slots,
-    nextmap,
-    custommap,
-    ban,
-    kick,
-    mute,
-    addons,
-    ready,
-    config
+    char     key[MAX_NAME_LENGTH];
+    char     textKey[MAX_NAME_LENGTH];
+    char     defaultText[MAX_MESSAGE_LENGTH];
+    ConVar   config;
+    bool     includeSpectators;
+    Function onSelect;
+    Function buildTitle;
+    Function execute;
 }
 
-voteType g_voteType = none;
+ArrayList g_Features             = null;
+int       g_iCurrentFeature      = -1;
+
+char      g_OfficialPrefix[][16] = {
+    "c1m1", "c2m1", "c3m1", "c4m1", "c5m1", "c6m1", "c7m1",
+    "c8m1", "c9m1", "c10m1", "c11m1", "c12m1", "c13m1", "c14m1"
+};
+
+char g_OfficialName[][32] = {
+    "死亡中心", "黑色狂欢节", "沼泽激战", "暴风骤雨", "教区",
+    "短暂时刻", "牺牲", "毫不留情", "坠机险途",
+    "死亡丧钟", "寂静时分", "血腥收获", "刺骨寒溪", "临死一搏"
+};
 
 public Plugin myinfo =
 {
     name        = "Vote Menu",
     author      = "Kevonlin",
     description = "Vote Menu.",
-    version     = "2.2.7",
+    version     = "3.0.0",
     url         = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -122,14 +117,11 @@ public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr
         strcopy(sError, iErrMax, "Plugin only supports Left 4 Dead 2.");
         return APLRes_SilentFailure;
     }
-
     return APLRes_Success;
 }
 
 public void OnPluginStart()
 {
-    ParseCustomCampaigns();
-    ParseNextCampaigns();
     CheckMatchModeConfigs();
     LoadingTranslations();
     CreateConVars();
@@ -138,8 +130,398 @@ public void OnPluginStart()
     HookEvents();
     RegConsoleCmds();
 
+    ScanMapsDirectory();
+
+    g_Features = new ArrayList(sizeof(VoteFeature));
+    RegisterAllFeatures();
+
     AutoExecConfig(true, "l4d2_votemenu");
 }
+
+// ===================== 注册 =====================
+
+void RegisterAllFeatures()
+{
+    RegisterHpFeature();
+    RegisterPillsFeature();
+    RegisterSlotsFeature();
+    RegisterNextMapFeature();
+    RegisterCustomMapFeature();
+    RegisterBanFeature();
+    RegisterKickFeature();
+    RegisterMuteFeature();
+    RegisterAddonsFeature();
+    RegisterReadyFeature();
+    if (g_bMatchModesAvailable)
+        RegisterChangeConfigFeature();
+}
+
+void RegisterHpFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "givehp");
+    strcopy(f.textKey, sizeof(f.textKey), "Give hp");
+    strcopy(f.defaultText, sizeof(f.defaultText), "恢复生命值");
+    f.config            = sm_votemenu_givehp;
+    f.includeSpectators = false;
+    f.onSelect          = Hp_OnSelect;
+    f.buildTitle        = Hp_BuildTitle;
+    f.execute           = Hp_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterPillsFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "givepills");
+    strcopy(f.textKey, sizeof(f.textKey), "Give pills");
+    strcopy(f.defaultText, sizeof(f.defaultText), "发止痛药");
+    f.config            = sm_votemenu_pills;
+    f.includeSpectators = false;
+    f.onSelect          = Pills_OnSelect;
+    f.buildTitle        = Pills_BuildTitle;
+    f.execute           = Pills_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterSlotsFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "changeslots");
+    strcopy(f.textKey, sizeof(f.textKey), "Change slots");
+    strcopy(f.defaultText, sizeof(f.defaultText), "更改旁观");
+    f.config            = sm_votemenu_changeslots;
+    f.includeSpectators = false;
+    f.onSelect          = Slots_OnSelect;
+    f.buildTitle        = Slots_BuildTitle;
+    f.execute           = Slots_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterNextMapFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "nextmap");
+    strcopy(f.textKey, sizeof(f.textKey), "Next map");
+    strcopy(f.defaultText, sizeof(f.defaultText), "下一张图");
+    f.config            = sm_votemenu_nextmap;
+    f.includeSpectators = false;
+    f.onSelect          = NextMap_OnSelect;
+    f.buildTitle        = NextMap_BuildTitle;
+    f.execute           = NextMap_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterCustomMapFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "changecustommaps");
+    strcopy(f.textKey, sizeof(f.textKey), "Change custom maps");
+    strcopy(f.defaultText, sizeof(f.defaultText), "更换三方图");
+    f.config            = sm_votemenu_changecustommaps;
+    f.includeSpectators = false;
+    f.onSelect          = CustomMap_OnSelect;
+    f.buildTitle        = CustomMap_BuildTitle;
+    f.execute           = CustomMap_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterBanFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "banplayers");
+    strcopy(f.textKey, sizeof(f.textKey), "Ban players");
+    strcopy(f.defaultText, sizeof(f.defaultText), "封禁玩家");
+    f.config            = sm_votemenu_ban;
+    f.includeSpectators = true;
+    f.onSelect          = Ban_OnSelect;
+    f.buildTitle        = Ban_BuildTitle;
+    f.execute           = Ban_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterKickFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "kickplayers");
+    strcopy(f.textKey, sizeof(f.textKey), "Kick players");
+    strcopy(f.defaultText, sizeof(f.defaultText), "踢出玩家");
+    f.config            = sm_votemenu_kick;
+    f.includeSpectators = true;
+    f.onSelect          = Kick_OnSelect;
+    f.buildTitle        = Kick_BuildTitle;
+    f.execute           = Kick_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterMuteFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "muteplayers");
+    strcopy(f.textKey, sizeof(f.textKey), "Mute players");
+    strcopy(f.defaultText, sizeof(f.defaultText), "静音玩家");
+    f.config            = sm_votemenu_mute;
+    f.includeSpectators = true;
+    f.onSelect          = Mute_OnSelect;
+    f.buildTitle        = Mute_BuildTitle;
+    f.execute           = Mute_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterAddonsFeature()
+{
+    if (cvarAddons == null) return;
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "toggleaddons");
+    strcopy(f.textKey, sizeof(f.textKey), "Toggle addons");
+    strcopy(f.defaultText, sizeof(f.defaultText), "启用/禁用 Mod");
+    f.config            = sm_votemenu_toggleaddons;
+    f.includeSpectators = false;
+    f.onSelect          = Addons_OnSelect;
+    f.buildTitle        = Addons_BuildTitle;
+    f.execute           = Addons_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterReadyFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "toggleready");
+    strcopy(f.textKey, sizeof(f.textKey), "Toggle ready");
+    strcopy(f.defaultText, sizeof(f.defaultText), "启用/禁用 Ready");
+    f.config            = sm_votemenu_toggleready;
+    f.includeSpectators = false;
+    f.onSelect          = Ready_OnSelect;
+    f.buildTitle        = Ready_BuildTitle;
+    f.execute           = Ready_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+void RegisterChangeConfigFeature()
+{
+    VoteFeature f;
+    strcopy(f.key, sizeof(f.key), "changeconfig");
+    strcopy(f.textKey, sizeof(f.textKey), "Change config");
+    strcopy(f.defaultText, sizeof(f.defaultText), "更换插件");
+    f.config            = null;
+    f.includeSpectators = false;
+    f.onSelect          = ChangeConfig_OnSelect;
+    f.buildTitle        = ChangeConfig_BuildTitle;
+    f.execute           = ChangeConfig_Execute;
+    g_Features.PushArray(f, sizeof(f));
+}
+
+// ===================== Feature 行为 =====================
+public void Hp_OnSelect(int client)
+{
+    if (StartVote(client))
+    {
+        LogMessage("Player [%N] start a give hp vote.", client);
+        FakeClientCommand(client, "Vote Yes");
+    }
+    else BuildVoteMenu(client);
+}
+
+public void Hp_BuildTitle(int client, char[] buf, int maxlen)
+{
+    VoteGetText(client, "Give hp context", "恢复所有幸存者生命值?", buf, maxlen);
+}
+
+public void Hp_Execute()
+{
+    RecoveryHealth();
+    LogMessage("Vote to give hp pass");
+}
+
+public void Pills_OnSelect(int client)
+{
+    if (StartVote(client))
+    {
+        LogMessage("Player [%N] start a give pills vote.", client);
+        FakeClientCommand(client, "Vote Yes");
+    }
+    else BuildVoteMenu(client);
+}
+
+public void Pills_BuildTitle(int client, char[] buf, int maxlen)
+{
+    VoteGetText(client, "Give pills context", "给所有幸存者发止痛药?", buf, maxlen);
+}
+
+public void Pills_Execute()
+{
+    GivePills();
+    LogMessage("Vote to give pills pass");
+}
+
+public void Slots_OnSelect(int client)
+{
+    SlotsMenu(client);
+}
+
+public void Slots_BuildTitle(int client, char[] buf, int maxlen)
+{
+    if (g_iSlots == 8) VoteGetText(client, "Slots 8", "更改服务器最大人数至8人", buf, maxlen);
+    else if (g_iSlots == 10) VoteGetText(client, "Slots 10", "更改服务器最大人数至10人", buf, maxlen);
+    else if (g_iSlots == 12) VoteGetText(client, "Slots 12", "更改服务器最大人数至12人", buf, maxlen);
+    else if (g_iSlots == 14) VoteGetText(client, "Slots 14", "更改服务器最大人数至14人", buf, maxlen);
+    else if (g_iSlots == 16) VoteGetText(client, "Slots 16", "更改服务器最大人数至16人", buf, maxlen);
+}
+
+public void Slots_Execute()
+{
+    ChangeSlots(g_iSlots);
+    LogMessage("Vote to change slots pass");
+}
+
+public void NextMap_OnSelect(int client)
+{
+    NextMapMenu(client);
+}
+
+public void NextMap_BuildTitle(int client, char[] buf, int maxlen)
+{
+    char tmp[64];
+    VoteGetText(client, "Vote next map", "投票下一张地图", tmp, sizeof(tmp));
+    FormatEx(buf, maxlen, "%s [%s]", tmp, g_sVoteNextMapName);
+}
+
+public void NextMap_Execute()
+{
+    ChangeNextMap(g_sVoteNextMapIndex, g_sVoteNextMapName);
+    LogMessage("Vote next map pass");
+}
+
+public void CustomMap_OnSelect(int client)
+{
+    CustomMapMenu(client);
+}
+
+public void CustomMap_BuildTitle(int client, char[] buf, int maxlen)
+{
+    char tmp[64];
+    VoteGetText(client, "Change custom map", "投票第三方地图", tmp, sizeof(tmp));
+    FormatEx(buf, maxlen, "%s [%s]", tmp, g_sVoteCustomMapName);
+}
+
+public void CustomMap_Execute()
+{
+    ChangeCustomMap(g_sVoteCustomMapIndex, g_sVoteCustomMapName);
+    LogMessage("Vote to change custom map [%s] pass", g_sVoteCustomMapName);
+}
+
+public void Ban_OnSelect(int client)
+{
+    SelectPlayerMenu(client);
+}
+
+public void Ban_BuildTitle(int client, char[] buf, int maxlen)
+{
+    char tmp[64];
+    VoteGetText(client, "Ban players", "封禁玩家", tmp, sizeof(tmp));
+    FormatEx(buf, maxlen, "%s [%N] 30min", tmp, g_selectClient);
+}
+
+public void Ban_Execute()
+{
+    BanPlayer(g_selectClient);
+    LogMessage("Vote to ban player [%N] pass", g_selectClient);
+}
+
+public void Kick_OnSelect(int client)
+{
+    SelectPlayerMenu(client);
+}
+
+public void Kick_BuildTitle(int client, char[] buf, int maxlen)
+{
+    char tmp[64];
+    VoteGetText(client, "Kick players", "踢出玩家", tmp, sizeof(tmp));
+    FormatEx(buf, maxlen, "%s [%N]", tmp, g_selectClient);
+}
+
+public void Kick_Execute()
+{
+    KickPlayer(g_selectClient);
+    LogMessage("Vote to kick player [%N] pass", g_selectClient);
+}
+
+public void Mute_OnSelect(int client)
+{
+    SelectPlayerMenu(client);
+}
+
+public void Mute_BuildTitle(int client, char[] buf, int maxlen)
+{
+    char tmp[64];
+    VoteGetText(client, "Mute players", "静音玩家", tmp, sizeof(tmp));
+    FormatEx(buf, maxlen, "%s [%N] 30min", tmp, g_selectClient);
+}
+
+public void Mute_Execute()
+{
+    MutePlayer(g_selectClient);
+    LogMessage("Vote to mute player [%N] pass", g_selectClient);
+}
+
+public void Addons_OnSelect(int client)
+{
+    AddonsMenu(client);
+}
+
+public void Addons_BuildTitle(int client, char[] buf, int maxlen)
+{
+    if (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()))
+        VoteGetText(client, "Disable addons", "禁止 Mod", buf, maxlen);
+    else
+        VoteGetText(client, "Enable addons", "启用 Mod", buf, maxlen);
+}
+
+public void Addons_Execute()
+{
+    ToggleAddons();
+    LogMessage("Vote to toggle addons pass");
+}
+
+public void Ready_OnSelect(int client)
+{
+    ReadyMenu(client);
+}
+
+public void Ready_BuildTitle(int client, char[] buf, int maxlen)
+{
+    if (g_cvarReady)
+        VoteGetText(client, "Disable ready", "禁止 Ready", buf, maxlen);
+    else
+        VoteGetText(client, "Enable ready", "启用 Ready", buf, maxlen);
+}
+
+public void Ready_Execute()
+{
+    if (cvarReady == null)
+    {
+        CPrintToChatAll("{blue}[{default}Vote{blue}] {default}Ready ConVar not found.");
+        return;
+    }
+    ToggleReady();
+    LogMessage("Vote to toggle ready pass");
+}
+
+public void ChangeConfig_OnSelect(int client)
+{
+    if (!g_cvarChangeConfigs)
+    {
+        CPrintToChat(client, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
+        return;
+    }
+    FakeClientCommand(client, "sm_chmatch");
+}
+
+public void ChangeConfig_BuildTitle(int client, char[] buf, int maxlen) {}
+
+public void ChangeConfig_Execute() {}
+
+// ===================== 基础设置 =====================
 
 void RegConsoleCmds()
 {
@@ -165,11 +547,12 @@ void HookConVarChanges()
     HookConVarChange(sm_votemenu_mute, CVarChanged);
     HookConVarChange(sm_votemenu_toggleaddons, CVarChanged);
     HookConVarChange(sm_votemenu_nextmap_timer_delay, CVarChanged);
-    HookConVarChange(cvarAddons, CVarChanged);
-    if (IsConfoglAvailable)
-    {
+
+    if (cvarAddons != null)
+        HookConVarChange(cvarAddons, CVarChanged);
+
+    if (IsConfoglAvailable && cvarReady != null)
         HookConVarChange(sm_votemenu_toggleready, CVarChanged);
-    }
 }
 
 void CreateConVars()
@@ -185,7 +568,7 @@ void CreateConVars()
     sm_votemenu_kick                = CreateConVar("sm_votemenu_kick", "1", "Kick Enable");
     sm_votemenu_mute                = CreateConVar("sm_votemenu_mute", "1", "Mute Enable");
     sm_votemenu_toggleaddons        = CreateConVar("sm_votemenu_toggleaddons", "1", "Toggle addons Enable");
-    sm_votemenu_toggleready         = CreateConVar("sm_votemenu_toggleready", "0", "Toggle ready Enable");
+    sm_votemenu_toggleready         = CreateConVar("sm_votemenu_toggleready", "1", "Toggle ready Enable");
     sm_votemenu_changeconfigs       = CreateConVar("sm_votemenu_changeconfigs", "1", "Change configs Enable");
     sm_match_player_limit           = CreateConVar("sm_match_player_limit", "1", "Minimum # of players in game to start the vote", _, true, 1.0, true, 32.0);
     sm_votemenu_nextmap_timer_delay = CreateConVar("sm_votemenu_nextmap_timer_delay", "8.0", "Change next map timer delay", _, true, 0.0);
@@ -198,32 +581,22 @@ void GetConVars()
 
     cvarMvMaxPlayers   = FindConVar("sv_maxplayers");
     cvarAddons         = FindConVar("l4d2_addons_eclipse");
+
     if (IsConfoglAvailable)
     {
         cvarReady = FindConVar("l4d_ready_enabled");
     }
 
-    g_cvarGiveHP            = GetConVarBool(sm_votemenu_givehp);
-    g_cvarGivePills         = GetConVarBool(sm_votemenu_pills);
-    g_cvarChangeSlots       = GetConVarBool(sm_votemenu_changeslots);
-    g_cvarNextMap           = GetConVarBool(sm_votemenu_nextmap);
-    g_cvarCustomMap         = GetConVarBool(sm_votemenu_changecustommaps);
-    g_cvarBan               = GetConVarBool(sm_votemenu_ban);
-    g_cvarKick              = GetConVarBool(sm_votemenu_kick);
-    g_cvarMute              = GetConVarBool(sm_votemenu_mute);
-    g_cvarToggleAddons      = GetConVarBool(sm_votemenu_toggleaddons);
-    g_cvarToggleReady       = GetConVarBool(sm_votemenu_toggleready);
     g_cvarNextMapTimerDelay = GetConVarFloat(sm_votemenu_nextmap_timer_delay);
     g_cvarChangeConfigs     = GetConVarBool(sm_votemenu_changeconfigs) && g_bMatchModesAvailable;
     g_bDebug                = GetConVarBool(l4d_votemenu_debug);
-    g_cvarAddons            = GetConVarInt(cvarAddons);
 
-    if (IsConfoglAvailable)
+    g_cvarAddons            = (cvarAddons != null) ? GetConVarInt(cvarAddons) : 1;
+
+    if (IsConfoglAvailable && cvarReady != null)
     {
         g_cvarReady = GetConVarBool(cvarReady);
     }
-    // if (cvarReady != INVALID_HANDLE)
-    // 	g_cvarReady = GetConVarBool(cvarReady);
 }
 
 void CheckMatchModeConfigs()
@@ -261,11 +634,240 @@ void LoadingTranslations()
     BuildPath(Path_SM, sPath, sizeof(sPath), "translations/" ... TRANSLATION_FILE... ".txt");
     if (!FileExists(sPath))
     {
-        SetFailState("Missing translation \"" ... TRANSLATION_FILE... "\"");
+        LogMessage("[Vote] Translation file not found, using hardcoded fallback.");
+        return;
     }
     LoadTranslations(TRANSLATION_FILE);
 }
 
+void VoteGetText(int client, const char[] textKey, const char[] defaultText, char[] buffer, int maxlen)
+{
+    if (TranslationPhraseExists(textKey))
+    {
+        FormatEx(buffer, maxlen, "%T", textKey, client);
+    }
+    else
+    {
+        strcopy(buffer, maxlen, defaultText);
+    }
+}
+
+// ===================== 地图扫描 =====================
+
+void ScanAllMapDirectories()
+{
+    DirectoryListing rootDir = OpenDirectory("..");
+    if (rootDir == null)
+    {
+        LogError("[Vote] Cannot open game root directory.");
+        return;
+    }
+
+    char     entryName[PLATFORM_MAX_PATH];
+    FileType type;
+    while (rootDir.GetNext(entryName, sizeof(entryName), type))
+    {
+        if (StrEqual(entryName, ".") || StrEqual(entryName, ".."))
+            continue;
+        if (type != FileType_Directory)
+            continue;
+
+        char mapsPath[PLATFORM_MAX_PATH];
+        FormatEx(mapsPath, sizeof(mapsPath), "../%s/maps", entryName);
+
+        if (DirExists(mapsPath, true))
+        {
+            ScanSingleMapDir(mapsPath);
+        }
+    }
+    delete rootDir;
+}
+
+void ScanSingleMapDir(const char[] relativePath)
+{
+    DirectoryListing dir = OpenDirectory(relativePath, true);
+    if (dir == null)
+        return;
+
+    char     filename[PLATFORM_MAX_PATH];
+    FileType type;
+    while (dir.GetNext(filename, sizeof(filename), type))
+    {
+        if (type != FileType_File) continue;
+        if (!StrEndsWith(filename, ".bsp")) continue;
+
+        int len       = strlen(filename) - 4;
+        filename[len] = '\0';
+
+        if (IsOfficialMapName(filename))
+        {
+            if (g_nextMapCount >= MAX_CAMPAIGN_LIMIT) continue;
+            if (!IsFirstMapOfCampaign(filename)) continue;
+            strcopy(g_nextMapIndex[g_nextMapCount], MAX_NAME_LENGTH, filename);
+            GetOfficialDisplayName(filename, g_nextMapName[g_nextMapCount], MAX_NAME_LENGTH);
+            g_nextMapCount++;
+        }
+    }
+    delete dir;
+}
+
+void ScanAddonsVpks()
+{
+    DirectoryListing addonsDir = OpenDirectory("addons", true);
+    if (addonsDir == null)
+    {
+        LogMessage("[Vote] Cannot open addons directory.");
+        return;
+    }
+
+    char     fileName[PLATFORM_MAX_PATH];
+    FileType type;
+    while (addonsDir.GetNext(fileName, sizeof(fileName), type))
+    {
+        if (type != FileType_File)
+            continue;
+        if (!StrEndsWith(fileName, ".vpk"))
+            continue;
+
+        // 检查 VPK 内是否包含 maps 目录
+        char vpkMapsPath[PLATFORM_MAX_PATH];
+        FormatEx(vpkMapsPath, sizeof(vpkMapsPath), "addons/%s/maps", fileName);
+
+        if (DirExists(vpkMapsPath, true))
+        {
+            ScanVpkMaps(vpkMapsPath);
+        }
+    }
+    delete addonsDir;
+}
+
+void ScanVpkMaps(const char[] vpkMapsPath)
+{
+    DirectoryListing dir = OpenDirectory(vpkMapsPath, true);
+    if (dir == null)
+        return;
+
+    char     filename[PLATFORM_MAX_PATH];
+    FileType type;
+    while (dir.GetNext(filename, sizeof(filename), type))
+    {
+        if (type != FileType_File) continue;
+        if (!StrEndsWith(filename, ".bsp")) continue;
+
+        int len       = strlen(filename) - 4;
+        filename[len] = '\0';
+
+        // 官方地图已在 ScanSingleMapDir 中处理，这里主要收集第三方地图
+        if (!IsOfficialMapName(filename))
+        {
+            if (g_customMapCount >= MAX_CAMPAIGN_LIMIT) continue;
+            if (IsMapAlreadyAdded(filename)) continue;    // 去重
+
+            strcopy(g_sCustomMapIndex[g_customMapCount], MAX_NAME_LENGTH, filename);
+            strcopy(g_sCustomMapName[g_customMapCount], MAX_NAME_LENGTH, filename);
+            g_customMapCount++;
+        }
+    }
+    delete dir;
+}
+
+bool IsMapAlreadyAdded(const char[] mapName)
+{
+    for (int i = 0; i < g_nextMapCount; i++)
+    {
+        if (strcmp(g_nextMapIndex[i], mapName) == 0) return true;
+    }
+    for (int i = 0; i < g_customMapCount; i++)
+    {
+        if (strcmp(g_sCustomMapIndex[i], mapName) == 0) return true;
+    }
+    return false;
+}
+
+void ScanMapsDirectory()
+{
+    g_nextMapCount   = 0;
+    g_customMapCount = 0;
+
+    // 扫描游戏根目录下所有 DLC 的 maps 文件夹
+    ScanAllMapDirectories();
+
+    // 扫描 addons 下的 VPK 地图
+    ScanAddonsVpks();
+
+    LogMessage("[Vote] Scanned: %d official, %d custom.", g_nextMapCount, g_customMapCount);
+}
+
+bool StrEndsWith(const char[] str, const char[] suffix)
+{
+    int lenStr    = strlen(str);
+    int lenSuffix = strlen(suffix);
+
+    if (lenSuffix > lenStr) return false;
+
+    int offset = lenStr - lenSuffix;
+    for (int i = 0; i < lenSuffix; i++)
+    {
+        if (str[offset + i] != suffix[i]) return false;
+    }
+    return true;
+}
+
+bool IsOfficialMapName(const char[] mapName)
+{
+    if (mapName[0] != 'c') return false;
+    int i = 1;
+    if (!IsDigitChar(mapName[i])) return false;
+    while (IsDigitChar(mapName[i]))
+        i++;
+    if (mapName[i] != 'm') return false;
+    i++;
+    if (!IsDigitChar(mapName[i])) return false;
+    while (IsDigitChar(mapName[i]))
+        i++;
+    return mapName[i] == '_';
+}
+
+bool IsFirstMapOfCampaign(const char[] mapName)
+{
+    int i = 0;
+    while (mapName[i] != '\0' && mapName[i] != 'm')
+        i++;
+    if (mapName[i] != 'm') return false;
+    i++;
+    if (mapName[i] != '1') return false;
+    i++;
+    return mapName[i] == '_';
+}
+
+bool IsDigitChar(char c)
+{
+    return c >= '0' && c <= '9';
+}
+
+void GetOfficialDisplayName(const char[] mapName, char[] buffer, int maxlen)
+{
+    char prefix[16];
+    int  i = 0;
+    while (mapName[i] != '_' && mapName[i] != '\0' && i < sizeof(prefix) - 1)
+    {
+        prefix[i] = mapName[i];
+        i++;
+    }
+    prefix[i] = '\0';
+
+    for (int j = 0; j < sizeof(g_OfficialPrefix); j++)
+    {
+        if (strcmp(prefix, g_OfficialPrefix[j]) == 0)
+        {
+            strcopy(buffer, maxlen, g_OfficialName[j]);
+            return;
+        }
+    }
+    strcopy(buffer, maxlen, mapName);
+}
+
+// ===================== 事件与钩子 =====================
 public void OnConfigsExecuted()
 {
     IsConfoglAvailable = LibraryExists("confogl");
@@ -303,7 +905,6 @@ public void RoundStart_Event(Event hEvent, const char[] eName, bool dontBroadcas
 public void RoundEnd_Event(Event hEvent, const char[] eName, bool dontBroadcast)
 {
     CreateTimer(g_cvarNextMapTimerDelay, Timer_ChangeVoteNextMap, _);
-    return;
 }
 
 public Action Timer_ChangeVoteNextMap(Handle timer, any data)
@@ -321,12 +922,9 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
     GetConVars();
 }
 
+// ===================== 菜单入口 =====================
 public Action Command_Votes(int iClient, int iArgs)
 {
-    // Test
-    //  CPrintToChat(iClient,"l4d2_addons_eclipse = %i", GetConVarInt(cvarAddons));
-    //  CPrintToChat(iClient,"l4d_ready_enabled = %b", g_cvarReady);
-
     if (iClient == 0 || !sm_votemenu_enable.BoolValue)
     {
         return Plugin_Handled;
@@ -348,258 +946,71 @@ public Action Command_Votes(int iClient, int iArgs)
     return Plugin_Handled;
 }
 
-void BuildVoteMenu(int iClient)
+void BuildVoteMenu(int client)
 {
-    char sBuffer[64];
+    char sBuffer[MAX_MESSAGE_LENGTH];
     Menu vMenu = new Menu(VoteMenuHandler);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Menu name", iClient);
+    VoteGetText(client, "Menu name", "投票菜单", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    if (g_cvarGiveHP)
+    for (int i = 0; i < g_Features.Length; i++)
     {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give hp", iClient);
-        vMenu.AddItem("givehp", sBuffer);
-    }
-    if (g_cvarGivePills)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give pills", iClient);
-        vMenu.AddItem("givepills", sBuffer);
-    }
-    if (g_cvarChangeSlots)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change slots", iClient);
-        vMenu.AddItem("changeslots", sBuffer);
-    }
-    if (g_cvarNextMap)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Next map", iClient);
-        vMenu.AddItem("nextmap", sBuffer);
-    }
-    if (g_cvarCustomMap)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change custom maps", iClient);
-        vMenu.AddItem("changecustommaps", sBuffer);
-    }
-    if (g_cvarBan)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Ban players", iClient);
-        vMenu.AddItem("banplayers", sBuffer);
-    }
-    if (g_cvarKick)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Kick players", iClient);
-        vMenu.AddItem("kickplayers", sBuffer);
-    }
-    if (g_cvarMute)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Mute players", iClient);
-        vMenu.AddItem("muteplayers", sBuffer);
-    }
-    if (g_cvarToggleAddons)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons", iClient);
-        vMenu.AddItem("toggleaddons", sBuffer);
-    }
-    if (g_cvarToggleReady)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready", iClient);
-        vMenu.AddItem("toggleready", sBuffer);
-    }
-
-    if (g_cvarChangeConfigs)
-    {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Change config", iClient);
-        vMenu.AddItem("changeconfig", sBuffer);
+        VoteFeature f;
+        g_Features.GetArray(i, f, sizeof(f));
+        if (f.config != null && !f.config.BoolValue) continue;
+        VoteGetText(client, f.textKey, f.defaultText, sBuffer, sizeof(sBuffer));
+        vMenu.AddItem(f.key, sBuffer);
     }
 
     vMenu.ExitButton = true;
-    vMenu.Display(iClient, 30);
+    vMenu.Display(client, 30);
 }
 
-public int VoteMenuHandler(Menu menu, MenuAction action, int param1, int param2)
+public int VoteMenuHandler(Menu menu, MenuAction action, int client, int item)
 {
-    switch (action)
+    if (action == MenuAction_End)
     {
-        case MenuAction_End:
-            delete menu;
+        delete menu;
+        return 0;
+    }
+    if (action != MenuAction_Select) return 0;
 
-        case MenuAction_Select:
-        {
-            char item[64];
-            menu.GetItem(param2, item, sizeof(item));
+    char key[MAX_NAME_LENGTH];
+    menu.GetItem(item, key, sizeof(key));
 
-            if (strcmp(item, "givehp") == 0)
-            {
-                if (!g_cvarGiveHP)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
+    VoteFeature f;
+    for (int i = 0; i < g_Features.Length; i++)
+    {
+        g_Features.GetArray(i, f, sizeof(f));
+        if (strcmp(f.key, key) != 0) continue;
 
-                g_voteType = view_as<voteType>(hp);
-                if (StartVote(param1))
-                {
-                    LogMessage("Player [%N] start a give hp vote.", param1);
-                    // caller is voting for
-                    FakeClientCommand(param1, "Vote Yes");
-                }
-                else
-                {
-                    g_voteType = view_as<voteType>(none);
-                    BuildVoteMenu(param1);
-                }
-            }
-            else if (strcmp(item, "givepills") == 0)
-            {
-                if (!g_cvarGivePills)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                g_voteType = view_as<voteType>(pills);
-                if (StartVote(param1))
-                {
-                    LogMessage("Player [%N] start a give pills vote.", param1);
-                    // caller is voting for
-                    FakeClientCommand(param1, "Vote Yes");
-                }
-                else
-                {
-                    g_voteType = view_as<voteType>(none);
-                    BuildVoteMenu(param1);
-                }
-            }
-            else if (strcmp(item, "changeslots") == 0)
-            {
-                if (!g_cvarChangeSlots)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                SlotsMenu(param1);
-            }
-            else if (strcmp(item, "nextmap") == 0)
-            {
-                if (sm_votemenu_nextmap.IntValue == 0)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                NextMapMenu(param1);
-            }
-            else if (strcmp(item, "changecustommaps") == 0)
-            {
-                if (!g_cvarCustomMap)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                CustomMapMenu(param1);
-            }
-            else if (strcmp(item, "banplayers") == 0)
-            {
-                if (!g_cvarBan)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                g_voteType = view_as<voteType>(ban);
-                SelectPlayerMenu(param1);
-            }
-            else if (strcmp(item, "kickplayers") == 0)
-            {
-                if (!g_cvarKick)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                g_voteType = view_as<voteType>(kick);
-                SelectPlayerMenu(param1);
-            }
-            else if (strcmp(item, "muteplayers") == 0)
-            {
-                if (!g_cvarMute)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                g_voteType = view_as<voteType>(mute);
-                SelectPlayerMenu(param1);
-            }
-            else if (strcmp(item, "toggleaddons") == 0)
-            {
-                if (!g_cvarToggleAddons)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                AddonsMenu(param1);
-            }
-            else if (strcmp(item, "toggleready") == 0)
-            {
-                if (!g_cvarToggleReady)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                if (cvarReady == INVALID_HANDLE)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}Convar was not found.");
-                    BuildVoteMenu(param1);
-                    return 0;
-                }
-
-                ReadyMenu(param1);
-            }
-            else if (strcmp(item, "changeconfig") == 0)
-            {
-                if (!g_cvarChangeConfigs)
-                {
-                    CPrintToChat(param1, "{blue}[{default}Vote{blue}] {default}This function is disabled.");
-                    return 0;
-                }
-                FakeClientCommand(param1, "sm_chmatch");
-            }
-        }
+        g_iCurrentFeature = i;
+        Call_StartFunction(null, f.onSelect);
+        Call_PushCell(client);
+        Call_Finish();
+        return 0;
     }
     return 0;
 }
+
+// ===================== 子菜单 =====================
 
 void SlotsMenu(int iClient)
 {
     char sBuffer[64];
     Menu vMenu = new Menu(SlotsMenuHandler);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots Menu", iClient);
+    VoteGetText(iClient, "Slots Menu", "修改服务器人数", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 8", iClient);
+    VoteGetText(iClient, "Slots 8", "更改服务器最大人数至8人", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots8", sBuffer);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 10", iClient);
+    VoteGetText(iClient, "Slots 10", "更改服务器最大人数至10人", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots10", sBuffer);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 12", iClient);
+    VoteGetText(iClient, "Slots 12", "更改服务器最大人数至12人", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots12", sBuffer);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 14", iClient);
+    VoteGetText(iClient, "Slots 14", "更改服务器最大人数至14人", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots14", sBuffer);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 16", iClient);
+    VoteGetText(iClient, "Slots 16", "更改服务器最大人数至16人", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots16", sBuffer);
 
     vMenu.ExitBackButton = true;
@@ -613,35 +1024,20 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
     {
         delete menu;
     }
-    else if (action == MenuAction_Cancel) {
+    else if (action == MenuAction_Cancel)
+    {
         BuildVoteMenu(param1);
     }
-    else if (action == MenuAction_Select) {
-        g_voteType = view_as<voteType>(slots);
-
+    else if (action == MenuAction_Select)
+    {
         char item[64];
         menu.GetItem(param2, item, sizeof(item));
 
-        if (strcmp(item, "slots8") == 0)
-        {
-            g_sSlots = "8";
-        }
-        else if (strcmp(item, "slots10") == 0)
-        {
-            g_sSlots = "10";
-        }
-        else if (strcmp(item, "slots12") == 0)
-        {
-            g_sSlots = "12";
-        }
-        else if (strcmp(item, "slots14") == 0)
-        {
-            g_sSlots = "14";
-        }
-        else if (strcmp(item, "slots16") == 0)
-        {
-            g_sSlots = "16";
-        }
+        if (strcmp(item, "slots8") == 0) g_sSlots = "8";
+        else if (strcmp(item, "slots10") == 0) g_sSlots = "10";
+        else if (strcmp(item, "slots12") == 0) g_sSlots = "12";
+        else if (strcmp(item, "slots14") == 0) g_sSlots = "14";
+        else if (strcmp(item, "slots16") == 0) g_sSlots = "16";
 
         g_iSlots = StringToInt(g_sSlots);
 
@@ -651,78 +1047,13 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
             return 0;
         }
 
-        if (strcmp(item, "slots8") == 0)
+        if (StartVote(param1))
         {
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start a Slots 8 vote.", param1);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
+            LogMessage("Player [%N] start a Slots %d vote.", param1, g_iSlots);
+            FakeClientCommand(param1, "Vote Yes");
         }
-        else if (strcmp(item, "slots10") == 0)
-        {
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start a Slots 10 vote.", param1);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
-        }
-        else if (strcmp(item, "slots12") == 0)
-        {
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start a Slots 12 vote.", param1);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
-        }
-        else if (strcmp(item, "slots14") == 0)
-        {
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start a Slots 14 vote.", param1);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
-        }
-        else if (strcmp(item, "slots16") == 0)
-        {
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start a Slots 16 vote.", param1);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
-        }
+        else BuildVoteMenu(param1);
     }
-
     return 0;
 }
 
@@ -730,7 +1061,7 @@ void NextMapMenu(int iClient)
 {
     char sBuffer[64];
     Menu vMenu = new Menu(NextMapMenuHandler);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select map menu", iClient);
+    VoteGetText(iClient, "Select map menu", "选择地图", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
     for (int i = 0; i < g_nextMapCount; i++)
@@ -749,73 +1080,34 @@ public int NextMapMenuHandler(Menu menu, MenuAction action, int param1, int para
     {
         delete menu;
     }
-    else if (action == MenuAction_Cancel) {
+    else if (action == MenuAction_Cancel)
+    {
         BuildVoteMenu(param1);
     }
-    else if (action == MenuAction_Select) {
-        g_voteType = view_as<voteType>(nextmap);
-
+    else if (action == MenuAction_Select)
+    {
         menu.GetItem(param2, g_sVoteNextMapIndex, sizeof(g_sVoteNextMapIndex), _, g_sVoteNextMapName, sizeof(g_sVoteNextMapName));
 
         if (StartVote(param1))
         {
             LogMessage("Player [%N] starts a vote: change next map [%s]", param1, g_sVoteNextMapName);
-            // caller is voting for
             FakeClientCommand(param1, "Vote Yes");
         }
-        else
-        {
-            g_voteType = view_as<voteType>(none);
-            BuildVoteMenu(param1);
-        }
+        else BuildVoteMenu(param1);
     }
     return 0;
-}
-
-void ParseNextCampaigns()
-{
-    Handle g_kvCampaigns = CreateKeyValues("VoteNextCampaigns");
-
-    char   sPath[PLATFORM_MAX_PATH];
-    BuildPath(Path_SM, sPath, sizeof(sPath), NEXTMAP_PATH);
-
-    if (!FileToKeyValues(g_kvCampaigns, sPath))
-    {
-        SetFailState("[Vote] File not found: %s", sPath);
-        CloseHandle(g_kvCampaigns);
-        return;
-    }
-
-    if (!KvGotoFirstSubKey(g_kvCampaigns))
-    {
-        SetFailState("[Vote] File can't read: you dumb noob!");
-        CloseHandle(g_kvCampaigns);
-        return;
-    }
-
-    for (int i = 0; i < MAX_CAMPAIGN_LIMIT; i++)
-    {
-        KvGetString(g_kvCampaigns, "mapinfo", g_nextMapIndex[i], sizeof(g_nextMapIndex));
-        KvGetString(g_kvCampaigns, "mapname", g_nextMapName[i], sizeof(g_nextMapName));
-
-        if (!KvGotoNextKey(g_kvCampaigns))
-        {
-            g_nextMapCount = ++i;
-            break;
-        }
-    }
 }
 
 void CustomMapMenu(int iClient)
 {
     char sBuffer[64];
     Menu vMenu = new Menu(CustomMapMenuHandler);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select map menu", iClient);
+    VoteGetText(iClient, "Select map menu", "选择地图", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
     for (int i = 0; i < g_customMapCount; i++)
     {
-        vMenu.AddItem(g_customMapIndex[i], g_customMapName[i]);
+        vMenu.AddItem(g_sCustomMapIndex[i], g_sCustomMapName[i]);
     }
 
     vMenu.ExitBackButton = true;
@@ -829,73 +1121,36 @@ public int CustomMapMenuHandler(Menu menu, MenuAction action, int param1, int pa
     {
         delete menu;
     }
-    else if (action == MenuAction_Cancel) {
+    else if (action == MenuAction_Cancel)
+    {
         BuildVoteMenu(param1);
     }
-    else if (action == MenuAction_Select) {
-        g_voteType = view_as<voteType>(custommap);
-
+    else if (action == MenuAction_Select)
+    {
         menu.GetItem(param2, g_sVoteCustomMapIndex, sizeof(g_sVoteCustomMapIndex), _, g_sVoteCustomMapName, sizeof(g_sVoteCustomMapName));
 
         if (StartVote(param1))
         {
             LogMessage("Player [%N] starts a vote: change custom map [%s]", param1, g_sVoteCustomMapName);
-            // caller is voting for
             FakeClientCommand(param1, "Vote Yes");
         }
-        else
-        {
-            g_voteType = view_as<voteType>(none);
-            BuildVoteMenu(param1);
-        }
+        else BuildVoteMenu(param1);
     }
     return 0;
-}
-
-void ParseCustomCampaigns()
-{
-    Handle g_kvCampaigns = CreateKeyValues("VoteCustomCampaigns");
-
-    char   sPath[PLATFORM_MAX_PATH];
-    BuildPath(Path_SM, sPath, sizeof(sPath), CUSTOMMAP_PATH);
-
-    if (!FileToKeyValues(g_kvCampaigns, sPath))
-    {
-        SetFailState("[Vote] File not found: %s", sPath);
-        CloseHandle(g_kvCampaigns);
-        return;
-    }
-
-    if (!KvGotoFirstSubKey(g_kvCampaigns))
-    {
-        SetFailState("[Vote] File can't read: you dumb noob!");
-        CloseHandle(g_kvCampaigns);
-        return;
-    }
-
-    for (int i = 0; i < MAX_CAMPAIGN_LIMIT; i++)
-    {
-        KvGetString(g_kvCampaigns, "mapinfo", g_customMapIndex[i], sizeof(g_customMapIndex));
-        KvGetString(g_kvCampaigns, "mapname", g_customMapName[i], sizeof(g_customMapName));
-
-        if (!KvGotoNextKey(g_kvCampaigns))
-        {
-            g_customMapCount = ++i;
-            break;
-        }
-    }
 }
 
 void SelectPlayerMenu(int iClient)
 {
     char sBuffer[64], sClientID[64];
     Menu vMenu = new Menu(SelectPlayerMenuHandler);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Select pleyer menu", iClient);
+    VoteGetText(iClient, "Select pleyer menu", "选择玩家", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    if (g_voteType == view_as<voteType>(kick))
+    VoteFeature f;
+    g_Features.GetArray(g_iCurrentFeature, f, sizeof(f));
+    if (strcmp(f.key, "kickplayers") == 0)
     {
-        FormatEx(sBuffer, sizeof(sBuffer), "%T", "Kick all spectators", iClient);
+        VoteGetText(iClient, "Kick all spectators", "踢出所有旁观", sBuffer, sizeof(sBuffer));
         vMenu.AddItem("kickspecs", sBuffer);
     }
 
@@ -920,10 +1175,12 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
     {
         delete menu;
     }
-    else if (action == MenuAction_Cancel) {
+    else if (action == MenuAction_Cancel)
+    {
         BuildVoteMenu(param1);
     }
-    else if (action == MenuAction_Select) {
+    else if (action == MenuAction_Select)
+    {
         char item[32];
         menu.GetItem(param2, item, sizeof(item));
 
@@ -944,109 +1201,20 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
         {
             if (!CanAdminTarget(clientAdmin, targetAdmin))
             {
-                switch (g_voteType)
-                {
-                    case (view_as<voteType>(ban)):
-                    {
-                        CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not ban Admins.", target);
-                        CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were banned by {blue}%N", param1);
-                    }
-
-                    case (view_as<voteType>(kick)):
-                    {
-                        CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not kick Admins.", target);
-                        CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were voted out by {blue}%N", param1);
-                    }
-
-                    case (view_as<voteType>(mute)):
-                    {
-                        CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not mute Admins.", target);
-                        CPrintToChat(target, "{blue}[{default}!{blue}] {default}You were muted by {blue}%N", param1);
-                    }
-                }
-                // SelectPlayerMenu(param1);
+                CPrintToChat(param1, "{blue}[{default}!{blue}] {default}You may not target Admins.");
                 return 0;
             }
         }
 
         g_selectClient = target;
 
-        if (g_voteType == view_as<voteType>(ban))
+        if (StartVote(param1))
         {
-            if (!g_cvarBan)
-            {
-                g_voteType = view_as<voteType>(none);
-                CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ban Player was disabled.");
-                BuildVoteMenu(param1);
-                return 0;
-            }
-
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start ban player [%N] vote.", param1, target);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-                FakeClientCommand(target, "Vote No");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
+            LogMessage("Player [%N] start vote on [%N].", param1, target);
+            FakeClientCommand(param1, "Vote Yes");
+            FakeClientCommand(target, "Vote No");
         }
-        else if (g_voteType == view_as<voteType>(kick))
-        {
-            if (!g_cvarKick)
-            {
-                g_voteType = view_as<voteType>(none);
-                CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Kick Player was disabled.");
-                BuildVoteMenu(param1);
-                return 0;
-            }
-
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start kick player [%N] vote.", param1, target);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-                FakeClientCommand(target, "Vote No");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
-        }
-        else if (g_voteType == view_as<voteType>(mute))
-        {
-            if (!g_cvarMute)
-            {
-                g_voteType = view_as<voteType>(none);
-                CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Mute Player was disabled.");
-                BuildVoteMenu(param1);
-                return 0;
-            }
-
-            if (BaseComm_IsClientMuted(target))
-            {
-                g_voteType = view_as<voteType>(none);
-                CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Player has been muted.");
-                return 0;
-            }
-
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start mute player [%N] vote.", param1, target);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-                FakeClientCommand(target, "Vote No");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
-        }
+        else BuildVoteMenu(param1);
     }
     return 0;
 }
@@ -1055,12 +1223,12 @@ void AddonsMenu(int iClient)
 {
     char sBuffer[64];
     Menu vMenu = new Menu(AddonsMenuHandler);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle addons", iClient);
+    VoteGetText(iClient, "Toggle addons", "启用/禁用 Mod", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable addons", iClient);
+    VoteGetText(iClient, "Enable addons", "启用 Mod", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("enablemod", sBuffer);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable addons", iClient);
+    VoteGetText(iClient, "Disable addons", "禁止 Mod", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("disablemod", sBuffer);
 
     vMenu.ExitBackButton = true;
@@ -1074,57 +1242,36 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
     {
         delete menu;
     }
-    else if (action == MenuAction_Cancel) {
+    else if (action == MenuAction_Cancel)
+    {
         BuildVoteMenu(param1);
     }
-    else if (action == MenuAction_Select) {
-        g_voteType = view_as<voteType>(addons);
-
+    else if (action == MenuAction_Select)
+    {
         char item[64];
         menu.GetItem(param2, item, sizeof(item));
 
-        if (strcmp(item, "enablemod") == 0)
-        {
-            if (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()))
-            {
-                CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already Enable");
-                AddonsMenu(param1);
-                return 0;
-            }
+        bool enable = (strcmp(item, "enablemod") == 0);
 
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start enbale addons vote.", param1);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
-        }
-        else if (strcmp(item, "disablemod") == 0)
+        if (enable && (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod())))
         {
-            if (g_cvarAddons == 0 || (g_cvarAddons == -1 && !IsDefaultEnableMod()))
-            {
-                CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already Disable");
-                AddonsMenu(param1);
-                return 0;
-            }
-
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start disable addons vote.", param1);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
+            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already Enable");
+            AddonsMenu(param1);
+            return 0;
         }
+        if (!enable && (g_cvarAddons == 0 || (g_cvarAddons == -1 && !IsDefaultEnableMod())))
+        {
+            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already Disable");
+            AddonsMenu(param1);
+            return 0;
+        }
+
+        if (StartVote(param1))
+        {
+            LogMessage("Player [%N] start toggle addons vote.", param1);
+            FakeClientCommand(param1, "Vote Yes");
+        }
+        else BuildVoteMenu(param1);
     }
     return 0;
 }
@@ -1133,12 +1280,12 @@ void ReadyMenu(int iClient)
 {
     char sBuffer[64];
     Menu vMenu = new Menu(ReadyMenuHandler);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Toggle ready", iClient);
+    VoteGetText(iClient, "Toggle ready", "启用/禁用 Ready", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable ready", iClient);
+    VoteGetText(iClient, "Enable ready", "启用 Ready", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("enableready", sBuffer);
-    FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable ready", iClient);
+    VoteGetText(iClient, "Disable ready", "禁止 Ready", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("disableready", sBuffer);
 
     vMenu.ExitBackButton = true;
@@ -1152,60 +1299,41 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
     {
         delete menu;
     }
-    else if (action == MenuAction_Cancel) {
+    else if (action == MenuAction_Cancel)
+    {
         BuildVoteMenu(param1);
     }
-    else if (action == MenuAction_Select) {
-        g_voteType = view_as<voteType>(ready);
-
+    else if (action == MenuAction_Select)
+    {
         char item[64];
         menu.GetItem(param2, item, sizeof(item));
 
-        if (strcmp(item, "enableready") == 0)
-        {
-            if (g_cvarReady)
-            {
-                CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin was already enabled");
-                ReadyMenu(param1);
-                return 0;
-            }
+        bool enable = (strcmp(item, "enableready") == 0);
 
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start enbale ready plugin vote.", param1);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
-        }
-        else if (strcmp(item, "disableready") == 0)
+        if (enable && g_cvarReady)
         {
-            if (!g_cvarReady)
-            {
-                CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin was already disabled");
-                ReadyMenu(param1);
-                return 0;
-            }
-
-            if (StartVote(param1))
-            {
-                LogMessage("Player [%N] start disable ready plugin vote.", param1);
-                // caller is voting for
-                FakeClientCommand(param1, "Vote Yes");
-            }
-            else
-            {
-                g_voteType = view_as<voteType>(none);
-                BuildVoteMenu(param1);
-            }
+            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin was already enabled");
+            ReadyMenu(param1);
+            return 0;
         }
+        if (!enable && !g_cvarReady)
+        {
+            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin was already disabled");
+            ReadyMenu(param1);
+            return 0;
+        }
+
+        if (StartVote(param1))
+        {
+            LogMessage("Player [%N] start toggle ready vote.", param1);
+            FakeClientCommand(param1, "Vote Yes");
+        }
+        else BuildVoteMenu(param1);
     }
     return 0;
 }
+
+// ===================== 投票核心 =====================
 
 bool StartVote(int iClient)
 {
@@ -1215,118 +1343,55 @@ bool StartVote(int iClient)
         return false;
     }
 
+    if (g_iCurrentFeature < 0 || g_iCurrentFeature >= g_Features.Length)
+    {
+        CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}Invalid feature.");
+        return false;
+    }
+
     g_bVoteEnable[iClient] = false;
     CreateTimer(sm_votemenu_timedelay.FloatValue, Timer_VoteDelay, iClient);
 
-    if (!IsBuiltinVoteInProgress())
+    if (IsBuiltinVoteInProgress())
     {
-        int iNumPlayers = 0;
-        int[] iPlayers  = new int[MaxClients];
-
-        if (g_voteType == view_as<voteType>(ban) || g_voteType == view_as<voteType>(kick) || g_voteType == view_as<voteType>(mute))
-        {
-            for (int i = 1; i <= MaxClients; i++)
-            {
-                if (!IsClientInGame(i) || IsFakeClient(i))
-                {
-                    continue;
-                }
-
-                iPlayers[iNumPlayers++] = i;
-            }
-        }
-        else
-        {
-            // list of non-spectators players
-            for (int i = 1; i <= MaxClients; i++)
-            {
-                if (!IsClientInGame(i) || IsFakeClient(i) || GetClientTeam(i) <= L4D2Team_Spectator)
-                {
-                    continue;
-                }
-
-                iPlayers[iNumPlayers++] = i;
-            }
-        }
-
-        if (iNumPlayers < sm_match_player_limit.IntValue)
-        {
-            CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}Vote cannot be started. Not enough players.");
-            return false;
-        }
-
-        char sBuffer[64];
-        if (g_voteType == view_as<voteType>(hp))
-            FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give hp context", iClient);
-        else if (g_voteType == view_as<voteType>(pills))
-            FormatEx(sBuffer, sizeof(sBuffer), "%T", "Give pills context", iClient);
-        else if (g_voteType == view_as<voteType>(slots))
-        {
-            if (g_iSlots == 8)
-                FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 8", iClient);
-            else if (g_iSlots == 10)
-                FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 10", iClient);
-            else if (g_iSlots == 12)
-                FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 12", iClient);
-            else if (g_iSlots == 14)
-                FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 14", iClient);
-            else if (g_iSlots == 16)
-                FormatEx(sBuffer, sizeof(sBuffer), "%T", "Slots 16", iClient);
-        }
-        else if (g_voteType == view_as<voteType>(nextmap))
-        {
-            FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Vote next map", iClient, g_sVoteNextMapName);
-        }
-        else if (g_voteType == view_as<voteType>(custommap))
-        {
-            FormatEx(sBuffer, sizeof(sBuffer), "%T [%s]", "Change custom map", iClient, g_sVoteCustomMapName);
-        }
-        else if (g_voteType == view_as<voteType>(ban))
-        {
-            FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Ban players", iClient, g_selectClient);
-        }
-        else if (g_voteType == view_as<voteType>(kick))
-        {
-            FormatEx(sBuffer, sizeof(sBuffer), "%T [%N]", "Kick players", iClient, g_selectClient);
-        }
-        else if (g_voteType == view_as<voteType>(mute))
-        {
-            FormatEx(sBuffer, sizeof(sBuffer), "%T [%N] 30min", "Mute players", iClient, g_selectClient);
-        }
-        else if (g_voteType == view_as<voteType>(addons))
-        {
-            if (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()))
-            {
-                FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable addons", iClient);
-            }
-            else if (g_cvarAddons == 0 || (g_cvarAddons == -1 && !IsDefaultEnableMod()))
-            {
-                FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable addons", iClient);
-            }
-        }
-        else if (g_voteType == view_as<voteType>(ready))
-        {
-            if (g_cvarReady)
-            {
-                FormatEx(sBuffer, sizeof(sBuffer), "%T", "Disable ready", iClient);
-            }
-            else if (!g_cvarReady)
-            {
-                FormatEx(sBuffer, sizeof(sBuffer), "%T", "Enable ready", iClient);
-            }
-        }
-
-        g_hVote = CreateBuiltinVote(VoteActionHandler, BuiltinVoteType_Custom_YesNo, BuiltinVoteAction_Cancel | BuiltinVoteAction_VoteEnd | BuiltinVoteAction_End);
-        SetBuiltinVoteArgument(g_hVote, sBuffer);
-        SetBuiltinVoteInitiator(g_hVote, iClient);
-        SetBuiltinVoteResultCallback(g_hVote, VoteResultHandler);
-        DisplayBuiltinVote(g_hVote, iPlayers, iNumPlayers, 15);
-
-        return true;
+        CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}Vote cannot be started now.");
+        return false;
     }
 
-    CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}Vote cannot be started now.");
-    return false;
+    VoteFeature f;
+    g_Features.GetArray(g_iCurrentFeature, f, sizeof(f));
+
+    int iNumPlayers = 0;
+    int[] iPlayers  = new int[MaxClients];
+    for (int i = 1; i <= MaxClients; i++)
+    {
+        if (!IsClientInGame(i) || IsFakeClient(i)) continue;
+        if (!f.includeSpectators && GetClientTeam(i) <= L4D2Team_Spectator) continue;
+        iPlayers[iNumPlayers++] = i;
+    }
+
+    if (iNumPlayers < sm_match_player_limit.IntValue)
+    {
+        CPrintToChat(iClient, "{blue}[{default}Vote{blue}] {default}Vote cannot be started. Not enough players.");
+        return false;
+    }
+
+    char sBuffer[MAX_MESSAGE_LENGTH];
+    Call_StartFunction(null, f.buildTitle);
+    Call_PushCell(iClient);
+    Call_PushStringEx(sBuffer, sizeof(sBuffer),
+                      SM_PARAM_STRING_UTF8 | SM_PARAM_STRING_COPY,
+                      SM_PARAM_COPYBACK);
+    Call_PushCell(sizeof(sBuffer));
+    Call_Finish();
+
+    g_hVote = CreateBuiltinVote(VoteActionHandler, BuiltinVoteType_Custom_YesNo, BuiltinVoteAction_Cancel | BuiltinVoteAction_VoteEnd | BuiltinVoteAction_End);
+    SetBuiltinVoteArgument(g_hVote, sBuffer);
+    SetBuiltinVoteInitiator(g_hVote, iClient);
+    SetBuiltinVoteResultCallback(g_hVote, VoteResultHandler);
+    DisplayBuiltinVote(g_hVote, iPlayers, iNumPlayers, 15);
+
+    return true;
 }
 
 public void VoteActionHandler(Handle vote, BuiltinVoteAction action, int param1, int param2)
@@ -1355,7 +1420,7 @@ public void VoteResultHandler(Handle vote, int num_votes, int num_clients,
             if (item_info[i][BUILTINVOTEINFO_ITEM_VOTES] > (num_votes / 2))
             {
                 DataPack dp = new DataPack();
-                dp.WriteCell(g_voteType);
+                dp.WriteCell(g_iCurrentFeature);
                 dp.WriteCell(g_iSlots);
                 dp.WriteString(g_sVoteNextMapIndex);
                 dp.WriteString(g_sVoteNextMapName);
@@ -1376,91 +1441,26 @@ public Action ExecVoteRes(Handle timer, any data)
 {
     DataPack dp = view_as<DataPack>(data);
     dp.Reset();
-    int  iVoteType = dp.ReadCell();
-    int  iSlots    = dp.ReadCell();
-    char sVoteNextMapIndex[MAX_NAME_LENGTH];
-    dp.ReadString(sVoteNextMapIndex, MAX_NAME_LENGTH);
-
-    char sVoteNextMapName[MAX_NAME_LENGTH];
-    dp.ReadString(sVoteNextMapName, MAX_NAME_LENGTH);
-
-    char sVoteCustomMapIndex[MAX_NAME_LENGTH];
-    dp.ReadString(sVoteCustomMapIndex, MAX_NAME_LENGTH);
-
-    char sVoteCustomMapName[MAX_NAME_LENGTH];
-    dp.ReadString(sVoteCustomMapName, MAX_NAME_LENGTH);
-
-    int iSelectClient = dp.ReadCell();
-
+    int iFeatureIdx = dp.ReadCell();
+    g_iSlots        = dp.ReadCell();
+    dp.ReadString(g_sVoteNextMapIndex, sizeof(g_sVoteNextMapIndex));
+    dp.ReadString(g_sVoteNextMapName, sizeof(g_sVoteNextMapName));
+    dp.ReadString(g_sVoteCustomMapIndex, sizeof(g_sVoteCustomMapIndex));
+    dp.ReadString(g_sVoteCustomMapName, sizeof(g_sVoteCustomMapName));
+    g_selectClient = dp.ReadCell();
     delete dp;
-    switch (iVoteType)
+
+    if (iFeatureIdx < 0 || iFeatureIdx >= g_Features.Length)
     {
-        case (view_as<voteType>(hp)):
-        {
-            RecoveryHealth();
-            LogMessage("Vote to give hp pass");
-        }
-
-        case (view_as<voteType>(pills)):
-        {
-            GivePills();
-            LogMessage("Vote to give pills pass");
-        }
-
-        case (view_as<voteType>(slots)):
-        {
-            ChangeSlots(iSlots);
-            LogMessage("Vote to change slots pass");
-        }
-
-        case (view_as<voteType>(nextmap)):
-        {
-            ChangeNextMap(sVoteNextMapIndex, sVoteNextMapName);
-            LogMessage("Vote next map pass");
-        }
-
-        case (view_as<voteType>(custommap)):
-        {
-            ChangeCustomMap(sVoteCustomMapIndex, sVoteCustomMapName);
-            LogMessage("Vote to change custom map [%s] pass", sVoteCustomMapName);
-        }
-
-        case (view_as<voteType>(ban)):
-        {
-            BanPlayer(iSelectClient);
-            LogMessage("Vote to ban player [%N] pass", iSelectClient);
-        }
-
-        case (view_as<voteType>(kick)):
-        {
-            KickPlayer(iSelectClient);
-            LogMessage("Vote to kick player [%N] pass", iSelectClient);
-        }
-
-        case (view_as<voteType>(mute)):
-        {
-            MutePlayer(iSelectClient);
-            LogMessage("Vote to mute player [%N] pass", iSelectClient);
-        }
-
-        case (view_as<voteType>(addons)):
-        {
-            ToggleAddons();
-            LogMessage("Vote to toggle addons pass");
-        }
-
-        case (view_as<voteType>(ready)):
-        {
-            ToggleReady();
-            LogMessage("Vote to toggle ready pass");
-        }
-
-            // case (view_as<voteType>(config)):
-            // {
-            // 	LoadConfig();
-            // 	LogMessage("Vote to change [%s] config pass", g_sCfg);
-            // }
+        LogError("[Vote] ExecVoteRes: invalid feature index %d", iFeatureIdx);
+        return Plugin_Handled;
     }
+
+    VoteFeature f;
+    g_Features.GetArray(iFeatureIdx, f, sizeof(f));
+
+    Call_StartFunction(null, f.execute);
+    Call_Finish();
 
     return Plugin_Handled;
 }
@@ -1470,6 +1470,8 @@ public Action Timer_VoteDelay(Handle timer, any client)
     g_bVoteEnable[client] = true;
     return Plugin_Continue;
 }
+
+// ===================== 执行函数 =====================
 
 void RecoveryHealth()
 {
@@ -1508,10 +1510,7 @@ void GivePills()
         if (!IsValidPlayerIndex(i)) continue;
         if (IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i))
         {
-            if (HasPills(i))
-            {
-                continue;
-            }
+            if (HasPills(i)) continue;
             FakeClientCommand(i, "give pain_pills");
         }
     }
@@ -1553,7 +1552,6 @@ Action Timer_ChangeCustomMapDelay(Handle timer, any data)
 void BanPlayer(int iSelectClient)
 {
     if (!IsClientInGame(iSelectClient) || IsFakeClient(iSelectClient)) return;
-    // BanClient(g_selectClient, 30, BANFLAG_AUTO, "Vote", "You habe been banned for 30 min.", "sm_ban");
     ServerCommand("sm_ban %i 30 Vote", iSelectClient);
     CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been banned for 30 min.", iSelectClient);
 }
@@ -1574,17 +1572,16 @@ void MutePlayer(int iSelectClient)
 
 void ToggleAddons()
 {
-    if (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()))
+    if (cvarAddons == null)
     {
-        SetConVarBool(cvarAddons, false);
-        CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Addons {default}has toggle to {blue}disalbe");
-    }
-    else if (g_cvarAddons == 0 || (g_cvarAddons == -1 && !IsDefaultEnableMod()))
-    {
-        SetConVarBool(cvarAddons, true);
-        CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Addons {default}has toggle to {blue}enable");
+        CPrintToChatAll("{blue}[{default}Vote{blue}] {default}Addons plugin not loaded.");
+        return;
     }
 
+    bool currentOn = (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()));
+    SetConVarBool(cvarAddons, !currentOn);
+
+    CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Addons {default}has been toggled.");
     CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Map will restart after {blue}3s");
     CreateTimer(3.0, RestartMap, _);
 }
@@ -1594,14 +1591,13 @@ void ToggleReady()
     if (g_cvarReady)
     {
         SetConVarInt(cvarReady, 1);
-        CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has toggle to {blue}disalbe");
     }
-    else if (!g_cvarReady)
+    else
     {
         SetConVarInt(cvarReady, 2);
-        CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has toggle to {blue}enalbe");
     }
 
+    CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Ready {default}has been toggled.");
     CPrintToChatAll("{blue}[{default}Vote{olive}] {default}Map will restart after {blue}3s");
     CreateTimer(3.0, RestartMap, _);
 }
@@ -1611,9 +1607,10 @@ public Action RestartMap(Handle timer, any client)
     char currentMap[256];
     GetCurrentMap(currentMap, 256);
     ServerCommand("changelevel %s", currentMap);
-
     return Plugin_Continue;
 }
+
+// ===================== 工具函数 =====================
 
 bool HasPills(int iClient)
 {
