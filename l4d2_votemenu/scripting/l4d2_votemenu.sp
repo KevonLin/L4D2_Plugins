@@ -86,18 +86,21 @@ enum struct VoteFeature
     Function execute;
 }
 
-ArrayList g_Features             = null;
-int       g_iCurrentFeature      = -1;
+ArrayList g_Features        = null;
+int       g_iCurrentFeature = -1;
 
-char      g_OfficialPrefix[][16] = {
-    "c1m1", "c2m1", "c3m1", "c4m1", "c5m1", "c6m1", "c7m1",
-    "c8m1", "c9m1", "c10m1", "c11m1", "c12m1", "c13m1", "c14m1"
+char g_OfficialMapInfo[][32] = {
+    "c1m1_hotel", "c2m1_highway", "c3m1_plankcountry", "c4m1_milltown_a",
+    "c5m1_waterfront", "c6m1_riverbank", "c7m1_docks", "c8m1_apartment",
+    "c9m1_alleys", "c10m1_caves", "c11m1_greenhouse", "c12m1_hilltop",
+    "c13m1_alpinecreek", "c14m1_junkyard"
 };
 
-char g_OfficialName[][32] = {
-    "死亡中心", "黑色狂欢节", "沼泽激战", "暴风骤雨", "教区",
-    "短暂时刻", "牺牲", "毫不留情", "坠机险途",
-    "死亡丧钟", "寂静时分", "血腥收获", "刺骨寒溪", "临死一搏"
+char g_OfficialMapName[][32] = {
+    "Dead Center", "Dark Carnival", "Swamp Fever", "Hard Rain",
+    "The Parish", "The Passing", "The Sacrifice", "No Mercy",
+    "Crash Course", "Death Toll", "Dead Air", "Blood Harvest",
+    "Cold Stream", "The Last Stand"
 };
 
 public Plugin myinfo =
@@ -105,7 +108,7 @@ public Plugin myinfo =
     name        = "Vote Menu",
     author      = "Kevonlin",
     description = "Vote Menu.",
-    version     = "3.0.0",
+    version     = "3.0.1",
     url         = "https://steamcommunity.com/profiles/76561199044101393/"
 };
 
@@ -138,7 +141,7 @@ public void OnPluginStart()
     AutoExecConfig(true, "l4d2_votemenu");
 }
 
-// ===================== 注册 =====================
+// ===================== Registration =====================
 
 void RegisterAllFeatures()
 {
@@ -161,7 +164,7 @@ void RegisterHpFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "givehp");
     strcopy(f.textKey, sizeof(f.textKey), "Give hp");
-    strcopy(f.defaultText, sizeof(f.defaultText), "恢复生命值");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Recovery Health");
     f.config            = sm_votemenu_givehp;
     f.includeSpectators = false;
     f.onSelect          = Hp_OnSelect;
@@ -175,7 +178,7 @@ void RegisterPillsFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "givepills");
     strcopy(f.textKey, sizeof(f.textKey), "Give pills");
-    strcopy(f.defaultText, sizeof(f.defaultText), "发止痛药");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Give Pills");
     f.config            = sm_votemenu_pills;
     f.includeSpectators = false;
     f.onSelect          = Pills_OnSelect;
@@ -189,7 +192,7 @@ void RegisterSlotsFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "changeslots");
     strcopy(f.textKey, sizeof(f.textKey), "Change slots");
-    strcopy(f.defaultText, sizeof(f.defaultText), "更改旁观");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Change Slots");
     f.config            = sm_votemenu_changeslots;
     f.includeSpectators = false;
     f.onSelect          = Slots_OnSelect;
@@ -203,7 +206,7 @@ void RegisterNextMapFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "nextmap");
     strcopy(f.textKey, sizeof(f.textKey), "Next map");
-    strcopy(f.defaultText, sizeof(f.defaultText), "下一张图");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Next Map");
     f.config            = sm_votemenu_nextmap;
     f.includeSpectators = false;
     f.onSelect          = NextMap_OnSelect;
@@ -217,7 +220,7 @@ void RegisterCustomMapFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "changecustommaps");
     strcopy(f.textKey, sizeof(f.textKey), "Change custom maps");
-    strcopy(f.defaultText, sizeof(f.defaultText), "更换三方图");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Change Custom Maps");
     f.config            = sm_votemenu_changecustommaps;
     f.includeSpectators = false;
     f.onSelect          = CustomMap_OnSelect;
@@ -231,7 +234,7 @@ void RegisterBanFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "banplayers");
     strcopy(f.textKey, sizeof(f.textKey), "Ban players");
-    strcopy(f.defaultText, sizeof(f.defaultText), "封禁玩家");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Ban Players");
     f.config            = sm_votemenu_ban;
     f.includeSpectators = true;
     f.onSelect          = Ban_OnSelect;
@@ -245,7 +248,7 @@ void RegisterKickFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "kickplayers");
     strcopy(f.textKey, sizeof(f.textKey), "Kick players");
-    strcopy(f.defaultText, sizeof(f.defaultText), "踢出玩家");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Kick Players");
     f.config            = sm_votemenu_kick;
     f.includeSpectators = true;
     f.onSelect          = Kick_OnSelect;
@@ -259,7 +262,7 @@ void RegisterMuteFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "muteplayers");
     strcopy(f.textKey, sizeof(f.textKey), "Mute players");
-    strcopy(f.defaultText, sizeof(f.defaultText), "静音玩家");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Mute Players");
     f.config            = sm_votemenu_mute;
     f.includeSpectators = true;
     f.onSelect          = Mute_OnSelect;
@@ -274,7 +277,7 @@ void RegisterAddonsFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "toggleaddons");
     strcopy(f.textKey, sizeof(f.textKey), "Toggle addons");
-    strcopy(f.defaultText, sizeof(f.defaultText), "启用/禁用 Mod");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Toggle Addons");
     f.config            = sm_votemenu_toggleaddons;
     f.includeSpectators = false;
     f.onSelect          = Addons_OnSelect;
@@ -288,7 +291,7 @@ void RegisterReadyFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "toggleready");
     strcopy(f.textKey, sizeof(f.textKey), "Toggle ready");
-    strcopy(f.defaultText, sizeof(f.defaultText), "启用/禁用 Ready");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Toggle Ready");
     f.config            = sm_votemenu_toggleready;
     f.includeSpectators = false;
     f.onSelect          = Ready_OnSelect;
@@ -302,7 +305,7 @@ void RegisterChangeConfigFeature()
     VoteFeature f;
     strcopy(f.key, sizeof(f.key), "changeconfig");
     strcopy(f.textKey, sizeof(f.textKey), "Change config");
-    strcopy(f.defaultText, sizeof(f.defaultText), "更换插件");
+    strcopy(f.defaultText, sizeof(f.defaultText), "Change Config");
     f.config            = null;
     f.includeSpectators = false;
     f.onSelect          = ChangeConfig_OnSelect;
@@ -311,7 +314,8 @@ void RegisterChangeConfigFeature()
     g_Features.PushArray(f, sizeof(f));
 }
 
-// ===================== Feature 行为 =====================
+// ===================== Feature Behaviors =====================
+
 public void Hp_OnSelect(int client)
 {
     if (StartVote(client))
@@ -324,7 +328,7 @@ public void Hp_OnSelect(int client)
 
 public void Hp_BuildTitle(int client, char[] buf, int maxlen)
 {
-    VoteGetText(client, "Give hp context", "恢复所有幸存者生命值?", buf, maxlen);
+    VoteGetText(client, "Give hp context", "Recovery Health?", buf, maxlen);
 }
 
 public void Hp_Execute()
@@ -345,7 +349,7 @@ public void Pills_OnSelect(int client)
 
 public void Pills_BuildTitle(int client, char[] buf, int maxlen)
 {
-    VoteGetText(client, "Give pills context", "给所有幸存者发止痛药?", buf, maxlen);
+    VoteGetText(client, "Give pills context", "Give Pills?", buf, maxlen);
 }
 
 public void Pills_Execute()
@@ -361,11 +365,11 @@ public void Slots_OnSelect(int client)
 
 public void Slots_BuildTitle(int client, char[] buf, int maxlen)
 {
-    if (g_iSlots == 8) VoteGetText(client, "Slots 8", "更改服务器最大人数至8人", buf, maxlen);
-    else if (g_iSlots == 10) VoteGetText(client, "Slots 10", "更改服务器最大人数至10人", buf, maxlen);
-    else if (g_iSlots == 12) VoteGetText(client, "Slots 12", "更改服务器最大人数至12人", buf, maxlen);
-    else if (g_iSlots == 14) VoteGetText(client, "Slots 14", "更改服务器最大人数至14人", buf, maxlen);
-    else if (g_iSlots == 16) VoteGetText(client, "Slots 16", "更改服务器最大人数至16人", buf, maxlen);
+    if (g_iSlots == 8) VoteGetText(client, "Slots 8", "Limit slots to 8", buf, maxlen);
+    else if (g_iSlots == 10) VoteGetText(client, "Slots 10", "Limit slots to 10", buf, maxlen);
+    else if (g_iSlots == 12) VoteGetText(client, "Slots 12", "Limit slots to 12", buf, maxlen);
+    else if (g_iSlots == 14) VoteGetText(client, "Slots 14", "Limit slots to 14", buf, maxlen);
+    else if (g_iSlots == 16) VoteGetText(client, "Slots 16", "Limit slots to 16", buf, maxlen);
 }
 
 public void Slots_Execute()
@@ -382,7 +386,7 @@ public void NextMap_OnSelect(int client)
 public void NextMap_BuildTitle(int client, char[] buf, int maxlen)
 {
     char tmp[64];
-    VoteGetText(client, "Vote next map", "投票下一张地图", tmp, sizeof(tmp));
+    VoteGetText(client, "Vote next map", "Vote Next Map", tmp, sizeof(tmp));
     FormatEx(buf, maxlen, "%s [%s]", tmp, g_sVoteNextMapName);
 }
 
@@ -400,7 +404,7 @@ public void CustomMap_OnSelect(int client)
 public void CustomMap_BuildTitle(int client, char[] buf, int maxlen)
 {
     char tmp[64];
-    VoteGetText(client, "Change custom map", "投票第三方地图", tmp, sizeof(tmp));
+    VoteGetText(client, "Change custom map", "Change Custom Map", tmp, sizeof(tmp));
     FormatEx(buf, maxlen, "%s [%s]", tmp, g_sVoteCustomMapName);
 }
 
@@ -418,7 +422,7 @@ public void Ban_OnSelect(int client)
 public void Ban_BuildTitle(int client, char[] buf, int maxlen)
 {
     char tmp[64];
-    VoteGetText(client, "Ban players", "封禁玩家", tmp, sizeof(tmp));
+    VoteGetText(client, "Ban players", "Ban Player", tmp, sizeof(tmp));
     FormatEx(buf, maxlen, "%s [%N] 30min", tmp, g_selectClient);
 }
 
@@ -436,7 +440,7 @@ public void Kick_OnSelect(int client)
 public void Kick_BuildTitle(int client, char[] buf, int maxlen)
 {
     char tmp[64];
-    VoteGetText(client, "Kick players", "踢出玩家", tmp, sizeof(tmp));
+    VoteGetText(client, "Kick players", "Kick Player", tmp, sizeof(tmp));
     FormatEx(buf, maxlen, "%s [%N]", tmp, g_selectClient);
 }
 
@@ -454,7 +458,7 @@ public void Mute_OnSelect(int client)
 public void Mute_BuildTitle(int client, char[] buf, int maxlen)
 {
     char tmp[64];
-    VoteGetText(client, "Mute players", "静音玩家", tmp, sizeof(tmp));
+    VoteGetText(client, "Mute players", "Mute Player", tmp, sizeof(tmp));
     FormatEx(buf, maxlen, "%s [%N] 30min", tmp, g_selectClient);
 }
 
@@ -472,9 +476,9 @@ public void Addons_OnSelect(int client)
 public void Addons_BuildTitle(int client, char[] buf, int maxlen)
 {
     if (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod()))
-        VoteGetText(client, "Disable addons", "禁止 Mod", buf, maxlen);
+        VoteGetText(client, "Disable addons", "Disable Addons", buf, maxlen);
     else
-        VoteGetText(client, "Enable addons", "启用 Mod", buf, maxlen);
+        VoteGetText(client, "Enable addons", "Enable Addons", buf, maxlen);
 }
 
 public void Addons_Execute()
@@ -491,9 +495,9 @@ public void Ready_OnSelect(int client)
 public void Ready_BuildTitle(int client, char[] buf, int maxlen)
 {
     if (g_cvarReady)
-        VoteGetText(client, "Disable ready", "禁止 Ready", buf, maxlen);
+        VoteGetText(client, "Disable ready", "Disable Ready", buf, maxlen);
     else
-        VoteGetText(client, "Enable ready", "启用 Ready", buf, maxlen);
+        VoteGetText(client, "Enable ready", "Enable Ready", buf, maxlen);
 }
 
 public void Ready_Execute()
@@ -521,7 +525,7 @@ public void ChangeConfig_BuildTitle(int client, char[] buf, int maxlen) {}
 
 public void ChangeConfig_Execute() {}
 
-// ===================== 基础设置 =====================
+// ===================== Base Setup =====================
 
 void RegConsoleCmds()
 {
@@ -546,13 +550,14 @@ void HookConVarChanges()
     HookConVarChange(sm_votemenu_kick, CVarChanged);
     HookConVarChange(sm_votemenu_mute, CVarChanged);
     HookConVarChange(sm_votemenu_toggleaddons, CVarChanged);
+    HookConVarChange(sm_votemenu_toggleready, CVarChanged);
     HookConVarChange(sm_votemenu_nextmap_timer_delay, CVarChanged);
 
     if (cvarAddons != null)
         HookConVarChange(cvarAddons, CVarChanged);
 
-    if (IsConfoglAvailable && cvarReady != null)
-        HookConVarChange(sm_votemenu_toggleready, CVarChanged);
+    if (cvarReady != null)
+        HookConVarChange(cvarReady, CVarChanged);
 }
 
 void CreateConVars()
@@ -652,71 +657,32 @@ void VoteGetText(int client, const char[] textKey, const char[] defaultText, cha
     }
 }
 
-// ===================== 地图扫描 =====================
+// ===================== Map Scanning =====================
 
-void ScanAllMapDirectories()
+void ScanMapsDirectory()
 {
-    DirectoryListing rootDir = OpenDirectory("..");
-    if (rootDir == null)
+    g_nextMapCount    = 0;
+    int officialCount = sizeof(g_OfficialMapInfo);
+    for (int i = 0; i < officialCount && i < MAX_CAMPAIGN_LIMIT; i++)
     {
-        LogError("[Vote] Cannot open game root directory.");
-        return;
+        strcopy(g_nextMapIndex[i], MAX_NAME_LENGTH, g_OfficialMapInfo[i]);
+        strcopy(g_nextMapName[i], MAX_NAME_LENGTH, g_OfficialMapName[i]);
+        g_nextMapCount++;
     }
 
-    char     entryName[PLATFORM_MAX_PATH];
-    FileType type;
-    while (rootDir.GetNext(entryName, sizeof(entryName), type))
-    {
-        if (StrEqual(entryName, ".") || StrEqual(entryName, ".."))
-            continue;
-        if (type != FileType_Directory)
-            continue;
+    ScanCustomMapsFromVpks();
 
-        char mapsPath[PLATFORM_MAX_PATH];
-        FormatEx(mapsPath, sizeof(mapsPath), "../%s/maps", entryName);
-
-        if (DirExists(mapsPath, true))
-        {
-            ScanSingleMapDir(mapsPath);
-        }
-    }
-    delete rootDir;
+    LogMessage("[Vote] Loaded: %d official, %d custom.", g_nextMapCount, g_customMapCount);
 }
 
-void ScanSingleMapDir(const char[] relativePath)
+void ScanCustomMapsFromVpks()
 {
-    DirectoryListing dir = OpenDirectory(relativePath, true);
-    if (dir == null)
-        return;
+    g_customMapCount = 0;
 
-    char     filename[PLATFORM_MAX_PATH];
-    FileType type;
-    while (dir.GetNext(filename, sizeof(filename), type))
-    {
-        if (type != FileType_File) continue;
-        if (!StrEndsWith(filename, ".bsp")) continue;
-
-        int len       = strlen(filename) - 4;
-        filename[len] = '\0';
-
-        if (IsOfficialMapName(filename))
-        {
-            if (g_nextMapCount >= MAX_CAMPAIGN_LIMIT) continue;
-            if (!IsFirstMapOfCampaign(filename)) continue;
-            strcopy(g_nextMapIndex[g_nextMapCount], MAX_NAME_LENGTH, filename);
-            GetOfficialDisplayName(filename, g_nextMapName[g_nextMapCount], MAX_NAME_LENGTH);
-            g_nextMapCount++;
-        }
-    }
-    delete dir;
-}
-
-void ScanAddonsVpks()
-{
-    DirectoryListing addonsDir = OpenDirectory("addons", true);
+    DirectoryListing addonsDir = OpenDirectory("addons");
     if (addonsDir == null)
     {
-        LogMessage("[Vote] Cannot open addons directory.");
+        LogError("[Vote] Cannot open addons directory.");
         return;
     }
 
@@ -724,59 +690,58 @@ void ScanAddonsVpks()
     FileType type;
     while (addonsDir.GetNext(fileName, sizeof(fileName), type))
     {
-        if (type != FileType_File)
-            continue;
-        if (!StrEndsWith(fileName, ".vpk"))
-            continue;
+        if (type != FileType_File) continue;
+        if (!StrEndsWith(fileName, ".vpk")) continue;
+        if (StrEndsWith(fileName, "_dir.vpk")) continue;
 
-        // 检查 VPK 内是否包含 maps 目录
+        int len = strlen(fileName);
+        if (len >= 8 && fileName[len - 8] == '_')
+        {
+            bool isChunk = true;
+            for (int k = len - 7; k < len - 4; k++)
+            {
+                if (fileName[k] < '0' || fileName[k] > '9')
+                {
+                    isChunk = false;
+                    break;
+                }
+            }
+            if (isChunk) continue;
+        }
+
         char vpkMapsPath[PLATFORM_MAX_PATH];
         FormatEx(vpkMapsPath, sizeof(vpkMapsPath), "addons/%s/maps", fileName);
 
-        if (DirExists(vpkMapsPath, true))
+        DirectoryListing mapsDir = OpenDirectory(vpkMapsPath, true);
+        if (mapsDir == null) continue;
+
+        char     mapFile[PLATFORM_MAX_PATH];
+        FileType mt;
+        while (mapsDir.GetNext(mapFile, sizeof(mapFile), mt))
         {
-            ScanVpkMaps(vpkMapsPath);
+            if (mt != FileType_File) continue;
+            if (!StrEndsWith(mapFile, ".bsp")) continue;
+
+            int mlen      = strlen(mapFile) - 4;
+            mapFile[mlen] = '\0';
+
+            if (StrEndsWith(mapFile, "_sndscape")) continue;
+            if (StrEndsWith(mapFile, "_commentary")) continue;
+
+            if (g_customMapCount >= MAX_CAMPAIGN_LIMIT) break;
+            if (IsCustomMapAlreadyAdded(mapFile)) continue;
+
+            strcopy(g_sCustomMapIndex[g_customMapCount], MAX_NAME_LENGTH, mapFile);
+            strcopy(g_sCustomMapName[g_customMapCount], MAX_NAME_LENGTH, mapFile);
+            g_customMapCount++;
         }
+        delete mapsDir;
     }
     delete addonsDir;
 }
 
-void ScanVpkMaps(const char[] vpkMapsPath)
+bool IsCustomMapAlreadyAdded(const char[] mapName)
 {
-    DirectoryListing dir = OpenDirectory(vpkMapsPath, true);
-    if (dir == null)
-        return;
-
-    char     filename[PLATFORM_MAX_PATH];
-    FileType type;
-    while (dir.GetNext(filename, sizeof(filename), type))
-    {
-        if (type != FileType_File) continue;
-        if (!StrEndsWith(filename, ".bsp")) continue;
-
-        int len       = strlen(filename) - 4;
-        filename[len] = '\0';
-
-        // 官方地图已在 ScanSingleMapDir 中处理，这里主要收集第三方地图
-        if (!IsOfficialMapName(filename))
-        {
-            if (g_customMapCount >= MAX_CAMPAIGN_LIMIT) continue;
-            if (IsMapAlreadyAdded(filename)) continue;    // 去重
-
-            strcopy(g_sCustomMapIndex[g_customMapCount], MAX_NAME_LENGTH, filename);
-            strcopy(g_sCustomMapName[g_customMapCount], MAX_NAME_LENGTH, filename);
-            g_customMapCount++;
-        }
-    }
-    delete dir;
-}
-
-bool IsMapAlreadyAdded(const char[] mapName)
-{
-    for (int i = 0; i < g_nextMapCount; i++)
-    {
-        if (strcmp(g_nextMapIndex[i], mapName) == 0) return true;
-    }
     for (int i = 0; i < g_customMapCount; i++)
     {
         if (strcmp(g_sCustomMapIndex[i], mapName) == 0) return true;
@@ -784,27 +749,11 @@ bool IsMapAlreadyAdded(const char[] mapName)
     return false;
 }
 
-void ScanMapsDirectory()
-{
-    g_nextMapCount   = 0;
-    g_customMapCount = 0;
-
-    // 扫描游戏根目录下所有 DLC 的 maps 文件夹
-    ScanAllMapDirectories();
-
-    // 扫描 addons 下的 VPK 地图
-    ScanAddonsVpks();
-
-    LogMessage("[Vote] Scanned: %d official, %d custom.", g_nextMapCount, g_customMapCount);
-}
-
 bool StrEndsWith(const char[] str, const char[] suffix)
 {
     int lenStr    = strlen(str);
     int lenSuffix = strlen(suffix);
-
     if (lenSuffix > lenStr) return false;
-
     int offset = lenStr - lenSuffix;
     for (int i = 0; i < lenSuffix; i++)
     {
@@ -813,64 +762,11 @@ bool StrEndsWith(const char[] str, const char[] suffix)
     return true;
 }
 
-bool IsOfficialMapName(const char[] mapName)
-{
-    if (mapName[0] != 'c') return false;
-    int i = 1;
-    if (!IsDigitChar(mapName[i])) return false;
-    while (IsDigitChar(mapName[i]))
-        i++;
-    if (mapName[i] != 'm') return false;
-    i++;
-    if (!IsDigitChar(mapName[i])) return false;
-    while (IsDigitChar(mapName[i]))
-        i++;
-    return mapName[i] == '_';
-}
+// ===================== Events & Hooks =====================
 
-bool IsFirstMapOfCampaign(const char[] mapName)
-{
-    int i = 0;
-    while (mapName[i] != '\0' && mapName[i] != 'm')
-        i++;
-    if (mapName[i] != 'm') return false;
-    i++;
-    if (mapName[i] != '1') return false;
-    i++;
-    return mapName[i] == '_';
-}
-
-bool IsDigitChar(char c)
-{
-    return c >= '0' && c <= '9';
-}
-
-void GetOfficialDisplayName(const char[] mapName, char[] buffer, int maxlen)
-{
-    char prefix[16];
-    int  i = 0;
-    while (mapName[i] != '_' && mapName[i] != '\0' && i < sizeof(prefix) - 1)
-    {
-        prefix[i] = mapName[i];
-        i++;
-    }
-    prefix[i] = '\0';
-
-    for (int j = 0; j < sizeof(g_OfficialPrefix); j++)
-    {
-        if (strcmp(prefix, g_OfficialPrefix[j]) == 0)
-        {
-            strcopy(buffer, maxlen, g_OfficialName[j]);
-            return;
-        }
-    }
-    strcopy(buffer, maxlen, mapName);
-}
-
-// ===================== 事件与钩子 =====================
 public void OnConfigsExecuted()
 {
-    IsConfoglAvailable = LibraryExists("confogl");
+    IsConfoglAvailable  = LibraryExists("confogl");
     CheckMatchModeConfigs();
     g_cvarChangeConfigs = GetConVarBool(sm_votemenu_changeconfigs) && g_bMatchModesAvailable;
 }
@@ -887,7 +783,7 @@ public void OnClientPostAdminCheck(int client)
 
     if (!(GetUserFlagBits(client) & ADMFLAG_GENERIC))
     {
-        KickClient(client, "服务器调试中...");
+        KickClient(client, "Server is in debug mode.");
     }
 }
 
@@ -922,7 +818,8 @@ public void CVarChanged(Handle cvar, char[] oldValue, char[] newValue)
     GetConVars();
 }
 
-// ===================== 菜单入口 =====================
+// ===================== Menu Entry =====================
+
 public Action Command_Votes(int iClient, int iArgs)
 {
     if (iClient == 0 || !sm_votemenu_enable.BoolValue)
@@ -950,7 +847,7 @@ void BuildVoteMenu(int client)
 {
     char sBuffer[MAX_MESSAGE_LENGTH];
     Menu vMenu = new Menu(VoteMenuHandler);
-    VoteGetText(client, "Menu name", "投票菜单", sBuffer, sizeof(sBuffer));
+    VoteGetText(client, "Menu name", "Vote Menu", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
     for (int i = 0; i < g_Features.Length; i++)
@@ -993,24 +890,24 @@ public int VoteMenuHandler(Menu menu, MenuAction action, int client, int item)
     return 0;
 }
 
-// ===================== 子菜单 =====================
+// ===================== Sub-Menus =====================
 
 void SlotsMenu(int iClient)
 {
-    char sBuffer[64];
+    char sBuffer[MAX_MESSAGE_LENGTH];
     Menu vMenu = new Menu(SlotsMenuHandler);
-    VoteGetText(iClient, "Slots Menu", "修改服务器人数", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Slots Menu", "Change Slots Menu", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    VoteGetText(iClient, "Slots 8", "更改服务器最大人数至8人", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Slots 8", "Limit slots to 8", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots8", sBuffer);
-    VoteGetText(iClient, "Slots 10", "更改服务器最大人数至10人", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Slots 10", "Limit slots to 10", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots10", sBuffer);
-    VoteGetText(iClient, "Slots 12", "更改服务器最大人数至12人", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Slots 12", "Limit slots to 12", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots12", sBuffer);
-    VoteGetText(iClient, "Slots 14", "更改服务器最大人数至14人", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Slots 14", "Limit slots to 14", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots14", sBuffer);
-    VoteGetText(iClient, "Slots 16", "更改服务器最大人数至16人", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Slots 16", "Limit slots to 16", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("slots16", sBuffer);
 
     vMenu.ExitBackButton = true;
@@ -1059,14 +956,24 @@ public int SlotsMenuHandler(Menu menu, MenuAction action, int param1, int param2
 
 void NextMapMenu(int iClient)
 {
-    char sBuffer[64];
+    char sBuffer[MAX_MESSAGE_LENGTH];
     Menu vMenu = new Menu(NextMapMenuHandler);
-    VoteGetText(iClient, "Select map menu", "选择地图", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Select map menu", "Select a Map", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    for (int i = 0; i < g_nextMapCount; i++)
+    if (g_nextMapCount == 0)
     {
-        vMenu.AddItem(g_nextMapIndex[i], g_nextMapName[i]);
+        VoteGetText(iClient, "No maps available", "No Maps Available", sBuffer, sizeof(sBuffer));
+        vMenu.AddItem("none", sBuffer, ITEMDRAW_DISABLED);
+    }
+    else
+    {
+        for (int i = 0; i < g_nextMapCount; i++)
+        {
+            char displayName[MAX_MESSAGE_LENGTH];
+            VoteGetText(iClient, g_nextMapIndex[i], g_nextMapName[i], displayName, sizeof(displayName));
+            vMenu.AddItem(g_nextMapIndex[i], displayName);
+        }
     }
 
     vMenu.ExitBackButton = true;
@@ -1100,14 +1007,24 @@ public int NextMapMenuHandler(Menu menu, MenuAction action, int param1, int para
 
 void CustomMapMenu(int iClient)
 {
-    char sBuffer[64];
+    char sBuffer[MAX_MESSAGE_LENGTH];
     Menu vMenu = new Menu(CustomMapMenuHandler);
-    VoteGetText(iClient, "Select map menu", "选择地图", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Select map menu", "Select a Map", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    for (int i = 0; i < g_customMapCount; i++)
+    if (g_customMapCount == 0)
     {
-        vMenu.AddItem(g_sCustomMapIndex[i], g_sCustomMapName[i]);
+        VoteGetText(iClient, "No maps available", "No Maps Available", sBuffer, sizeof(sBuffer));
+        vMenu.AddItem("none", sBuffer, ITEMDRAW_DISABLED);
+    }
+    else
+    {
+        for (int i = 0; i < g_customMapCount; i++)
+        {
+            char displayName[MAX_MESSAGE_LENGTH];
+            VoteGetText(iClient, g_sCustomMapIndex[i], g_sCustomMapName[i], displayName, sizeof(displayName));
+            vMenu.AddItem(g_sCustomMapIndex[i], displayName);
+        }
     }
 
     vMenu.ExitBackButton = true;
@@ -1141,17 +1058,20 @@ public int CustomMapMenuHandler(Menu menu, MenuAction action, int param1, int pa
 
 void SelectPlayerMenu(int iClient)
 {
-    char sBuffer[64], sClientID[64];
+    char sBuffer[MAX_MESSAGE_LENGTH], sClientID[64];
     Menu vMenu = new Menu(SelectPlayerMenuHandler);
-    VoteGetText(iClient, "Select pleyer menu", "选择玩家", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Select pleyer menu", "Select a Player", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
+
+    int itemCount = 0;
 
     VoteFeature f;
     g_Features.GetArray(g_iCurrentFeature, f, sizeof(f));
     if (strcmp(f.key, "kickplayers") == 0)
     {
-        VoteGetText(iClient, "Kick all spectators", "踢出所有旁观", sBuffer, sizeof(sBuffer));
+        VoteGetText(iClient, "Kick all spectators", "Kick All Spectators", sBuffer, sizeof(sBuffer));
         vMenu.AddItem("kickspecs", sBuffer);
+        itemCount++;
     }
 
     for (int i = 1; i <= MaxClients; i++)
@@ -1161,7 +1081,14 @@ void SelectPlayerMenu(int iClient)
             FormatEx(sClientID, sizeof(sClientID), "%i", GetClientUserId(i));
             FormatEx(sBuffer, sizeof(sBuffer), "%N", i);
             vMenu.AddItem(sClientID, sBuffer);
+            itemCount++;
         }
+    }
+
+    if (itemCount == 0)
+    {
+        VoteGetText(iClient, "No players available", "No Players Available", sBuffer, sizeof(sBuffer));
+        vMenu.AddItem("none", sBuffer, ITEMDRAW_DISABLED);
     }
 
     vMenu.ExitBackButton = true;
@@ -1221,14 +1148,14 @@ public int SelectPlayerMenuHandler(Menu menu, MenuAction action, int param1, int
 
 void AddonsMenu(int iClient)
 {
-    char sBuffer[64];
+    char sBuffer[MAX_MESSAGE_LENGTH];
     Menu vMenu = new Menu(AddonsMenuHandler);
-    VoteGetText(iClient, "Toggle addons", "启用/禁用 Mod", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Toggle addons", "Toggle Addons", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    VoteGetText(iClient, "Enable addons", "启用 Mod", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Enable addons", "Enable Addons", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("enablemod", sBuffer);
-    VoteGetText(iClient, "Disable addons", "禁止 Mod", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Disable addons", "Disable Addons", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("disablemod", sBuffer);
 
     vMenu.ExitBackButton = true;
@@ -1255,13 +1182,13 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 
         if (enable && (g_cvarAddons == 1 || (g_cvarAddons == -1 && IsDefaultEnableMod())))
         {
-            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already Enable");
+            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already enabled");
             AddonsMenu(param1);
             return 0;
         }
         if (!enable && (g_cvarAddons == 0 || (g_cvarAddons == -1 && !IsDefaultEnableMod())))
         {
-            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already Disable");
+            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Addons is already disabled");
             AddonsMenu(param1);
             return 0;
         }
@@ -1278,14 +1205,14 @@ public int AddonsMenuHandler(Menu menu, MenuAction action, int param1, int param
 
 void ReadyMenu(int iClient)
 {
-    char sBuffer[64];
+    char sBuffer[MAX_MESSAGE_LENGTH];
     Menu vMenu = new Menu(ReadyMenuHandler);
-    VoteGetText(iClient, "Toggle ready", "启用/禁用 Ready", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Toggle ready", "Toggle Ready", sBuffer, sizeof(sBuffer));
     vMenu.SetTitle(sBuffer);
 
-    VoteGetText(iClient, "Enable ready", "启用 Ready", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Enable ready", "Enable Ready", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("enableready", sBuffer);
-    VoteGetText(iClient, "Disable ready", "禁止 Ready", sBuffer, sizeof(sBuffer));
+    VoteGetText(iClient, "Disable ready", "Disable Ready", sBuffer, sizeof(sBuffer));
     vMenu.AddItem("disableready", sBuffer);
 
     vMenu.ExitBackButton = true;
@@ -1312,13 +1239,13 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
 
         if (enable && g_cvarReady)
         {
-            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin was already enabled");
+            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin is already enabled");
             ReadyMenu(param1);
             return 0;
         }
         if (!enable && !g_cvarReady)
         {
-            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin was already disabled");
+            CPrintToChat(param1, "{blue}[{default}!{blue}] {default}Ready plugin is already disabled");
             ReadyMenu(param1);
             return 0;
         }
@@ -1333,7 +1260,7 @@ public int ReadyMenuHandler(Menu menu, MenuAction action, int param1, int param2
     return 0;
 }
 
-// ===================== 投票核心 =====================
+// ===================== Vote Core =====================
 
 bool StartVote(int iClient)
 {
@@ -1471,7 +1398,7 @@ public Action Timer_VoteDelay(Handle timer, any client)
     return Plugin_Continue;
 }
 
-// ===================== 执行函数 =====================
+// ===================== Execution Functions =====================
 
 void RecoveryHealth()
 {
@@ -1487,7 +1414,7 @@ void RecoveryHealth()
         }
     }
     SetCommandFlags("give", flags | FCVAR_CHEAT);
-    CPrintToChatAll("{blue}[{default}Vote{blue}] {olive}All survivors {default}has restored.");
+    CPrintToChatAll("{blue}[{default}Vote{blue}] {olive}All survivors {default}health has been restored.");
 }
 
 void SetSurvivorPermanentHealth(int client, int health)
@@ -1515,13 +1442,13 @@ void GivePills()
         }
     }
     SetCommandFlags("give", flags | FCVAR_CHEAT);
-    CPrintToChatAll("{blue}[{default}Vote{blue}] {olive}Pills {default}has distributed to {blue}All survivors");
+    CPrintToChatAll("{blue}[{default}Vote{blue}] {olive}Pills {default}has been distributed to {blue}All survivors");
 }
 
 void ChangeSlots(int iSlots)
 {
     SetConVarInt(cvarMvMaxPlayers, iSlots);
-    CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Slots {default}has limited to {blue}%i", iSlots);
+    CPrintToChatAll("{blue}[{default}Vote{olive}] {blue}Slots {default}has been limited to {blue}%i", iSlots);
 }
 
 void ChangeNextMap(const char[] mapIndex, const char[] mapName)
@@ -1559,7 +1486,7 @@ void BanPlayer(int iSelectClient)
 void KickPlayer(int iSelectClient)
 {
     if (!IsClientInGame(iSelectClient) || IsFakeClient(iSelectClient)) return;
-    KickClient(iSelectClient, "You have been vote off.");
+    KickClient(iSelectClient, "You have been voted off.");
     CPrintToChatAll("{blue}[{default}Vote{olive}] Player {blue}%N {default}has been voted off.", iSelectClient);
 }
 
@@ -1610,7 +1537,7 @@ public Action RestartMap(Handle timer, any client)
     return Plugin_Continue;
 }
 
-// ===================== 工具函数 =====================
+// ===================== Utility Functions =====================
 
 bool HasPills(int iClient)
 {

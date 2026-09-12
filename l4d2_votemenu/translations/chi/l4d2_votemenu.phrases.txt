@@ -23,7 +23,7 @@
         "chi"       "更改旁观"
         "en"        "Limit Slots"
     }
-    
+
     "Next map"
     {
         "chi"       "下一张图"
@@ -64,12 +64,6 @@
     {
         "chi"       "启用/禁用 Ready"
         "en"        "Enable/Disable Ready"
-    }
-
-    "Toggle lerp filter"
-    {
-        "chi"       "启用/禁用Lerp过滤"
-        "en"        "Toggle the lerp filter"
     }
 
     "Change config"
@@ -156,30 +150,6 @@
         "en"        "Disable Ready"
     }
 
-    "Enable lerp filter"
-    {
-        "chi"       "启用 lerp filter"
-        "en"        "Enable lerp filter"
-    }
-
-    "Disable lerp filter"
-    {
-        "chi"       "禁止 lerp filter"
-        "en"        "Disable lerp filter"
-    }
-
-    "Match mode menu"
-    {
-        "chi"       "选择插件类型"
-        "en"        "Select match mode"
-    }
-
-    "Match config menu"
-    {
-        "chi"       "选择配置"
-        "en"        "Select config"
-    }
-
     "Give hp context"
     {
         "chi"       "恢复所有幸存者生命值?"
@@ -202,5 +172,88 @@
     {
         "chi"       "投票第三方地图"
         "en"        "Change the custom map"
+    }
+
+    "No maps available"
+    {
+        "chi"       "没有可用地图"
+        "en"        "No maps available"
+    }
+
+    "No players available"
+    {
+        "chi"       "没有可用玩家"
+        "en"        "No players available"
+    }
+
+    "c1m1_hotel"
+    {
+        "chi"       "死亡中心"
+        "en"        "Dead Center"
+    }
+    "c2m1_highway"
+    {
+        "chi"       "黑色狂欢节"
+        "en"        "Dark Carnival"
+    }
+    "c3m1_plankcountry"
+    {
+        "chi"       "沼泽激战"
+        "en"        "Swamp Fever"
+    }
+    "c4m1_milltown_a"
+    {
+        "chi"       "暴风骤雨"
+        "en"        "Hard Rain"
+    }
+    "c5m1_waterfront"
+    {
+        "chi"       "教区"
+        "en"        "The Parish"
+    }
+    "c6m1_riverbank"
+    {
+        "chi"       "短暂时刻"
+        "en"        "The Passing"
+    }
+    "c7m1_docks"
+    {
+        "chi"       "牺牲"
+        "en"        "The Sacrifice"
+    }
+    "c8m1_apartment"
+    {
+        "chi"       "毫不留情"
+        "en"        "No Mercy"
+    }
+    "c9m1_alleys"
+    {
+        "chi"       "坠机险途"
+        "en"        "Crash Course"
+    }
+    "c10m1_caves"
+    {
+        "chi"       "死亡丧钟"
+        "en"        "Death Toll"
+    }
+    "c11m1_greenhouse"
+    {
+        "chi"       "寂静时分"
+        "en"        "Dead Air"
+    }
+    "c12m1_hilltop"
+    {
+        "chi"       "血腥收获"
+        "en"        "Blood Harvest"
+    }
+    "c13m1_alpinecreek"
+    {
+        "chi"       "刺骨寒溪"
+        "en"        "Cold Stream"
+    }
+    "c14m1_junkyard"
+    {
+        "chi"       "临死一搏"
+        "en"        "The Last Stand"
     }
 }
